@@ -1,6 +1,6 @@
-OBJS 	= main.o Input.o
-SOURCE	= main.c src/Frontend/Input.c
-HEADER  = HeaderFiles/Input.h
+OBJS 	= main.o Input.o Inotify.o Actions.o
+SOURCE	= main.c src/Frontend/Input.c src/Inotify/Inotify.c src/Actions/Actions.c
+HEADER  = HeaderFiles/Input.h HeaderFiles/Inotify.h HeaderFiles/Actions.h
 OUT  	= mirror_client
 CC		= gcc
 FLAGS   = -g -c -Wall
@@ -16,6 +16,12 @@ main.o: main.c
 
 Input.o: src/Frontend/Input.c
 	$(CC) $(FLAGS) src/Frontend/Input.c
+
+Inotify.o: src/Inotify/Inotify.c
+	$(CC) $(FLAGS) src/Inotify/Inotify.c
+
+Actions.o: src/Actions/Actions.c
+	$(CC) $(FLAGS) src/Actions/Actions.c
 
 
 # clean house

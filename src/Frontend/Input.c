@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include "../../HeaderFiles/Input.h"
+#include "../../HeaderFiles/Inotify.h"
 
 // parse command line args
 void paramChecker(int n, char* argv[], char* toCheck, char** result){
@@ -130,6 +131,8 @@ int InputReader(int argc, char* argv[]){
     if(writeIDfile(commonDir, id) == ERROR){
         return ERROR;
     }
+
+    inotifyCode(commonDir);
 
     return SUCCESS;
 }
