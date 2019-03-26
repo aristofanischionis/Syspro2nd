@@ -51,7 +51,7 @@ function main () {
     # get their random names
     for ((i = 0 ; i < num_of_dirs ; i++)); do
         dir_array[$i]=$(random_string)
-        echo ${dir_array[$i]}
+        # echo ${dir_array[$i]}
     done
     # create them in lvls
     declare -a rr_dir_arr
@@ -76,16 +76,17 @@ function main () {
             dir_counter=$((dir_counter + 1))
             counter=$((counter + 1))
         done
-        echo ${tmp_dir}
+        # echo ${tmp_dir}
         mkdir -p $tmp_dir
     done
     # declare a filename array
     declare -a fil_array
     # create random file names
-    echo 'lets make our nice files'
+    # echo 'lets make our nice files'
     for ((i = 0 ; i < num_of_files ; i++)); do
         fil_array[$i]=$(random_string)'.file'
-        echo ${fil_array[$i]}
+        # fil_array[$i]='f'${i}
+        # echo ${fil_array[$i]}
     done
     # create them in RR order and place them in folders
     # i have already my array of dirs in rr order so just go through the array and add files
@@ -95,7 +96,7 @@ function main () {
             if [[ fil_counter -eq num_of_files ]]; then
                 break
             fi
-            tmp_file=${rr_dir_arr[$i]}'/'${fil_array[$i]}
+            tmp_file=${rr_dir_arr[$i]}'/'${fil_array[$fil_counter]}
             echo 'file to be made '${tmp_file}
             touch $tmp_file
             fil_counter=$((fil_counter + 1))
