@@ -6,6 +6,14 @@ function random_string()
     cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-$((1 + RANDOM % 8))} | head -n 1
 }
 
+# generates a random string of random len 1-8
+function random_data()
+{
+    VAR=$(shuf -i 1000-128000 -n 1)
+    # echo 'my var is '${VAR}
+    cat /dev/urandom | tr -dc "a-zA-Z0-9!@#$%^&*()_+?><~\`;'" | head -c ${VAR} > $1
+}
+
 # checks if to delete or not the given folder
 function deleter () {
     echo "Press Y/y to delete it and proceed"
@@ -13,7 +21,7 @@ function deleter () {
     read  -n 1 -p "Input Selection:" input
     echo ''
     if [[ "$input" == "y" ]] || [[ "$input" == "Y" ]]; then
-        rm -rf $dir_name
+        rm -rf $1
         echo 'Deleted'
     else
         echo 'Exiting...'
@@ -99,10 +107,10 @@ function main () {
             tmp_file=${rr_dir_arr[$i]}'/'${fil_array[$fil_counter]}
             echo 'file to be made '${tmp_file}
             touch $tmp_file
+            random_data $tmp_file
             fil_counter=$((fil_counter + 1))
         done
     done
-
 }
 
 main $*
