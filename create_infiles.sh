@@ -54,7 +54,11 @@ function main () {
         echo ${dir_array[$i]}
     done
     # create them in lvls
+    declare -a rr_dir_arr
+    rr_dir_arr[0]=$dir_name
+    let dir_counter=1
     let counter=0
+
     while true; do
         if [[ counter -eq num_of_dirs ]]; then
                 break
@@ -66,7 +70,11 @@ function main () {
                 break
             fi
             tmp_dir=$tmp_dir'/'${dir_array[$counter]}
-            counter=$counter+1
+            # put it in dir_arr
+            rr_dir_arr[$dir_counter]=$tmp_dir
+            # echo 'array elem'${dir_counter}'is '${rr_dir_arr[$dir_counter]}
+            dir_counter=$((dir_counter + 1))
+            counter=$((counter + 1))
         done
         echo ${tmp_dir}
         mkdir -p $tmp_dir
@@ -80,35 +88,21 @@ function main () {
         echo ${fil_array[$i]}
     done
     # create them in RR order and place them in folders
-    counter=0
-    let dir_counter=0
-    # not correct yet, right now i put the files in the same pattern as i create the folders
-    # have to check it again
-    while true; do
-        if [[ counter -eq num_of_files ]]; then
-            break
-        fi
-        tmp_dir=$dir_name
-        echo $tmp_dir'/'${fil_array[$counter]}
-        touch $tmp_dir'/'${fil_array[$counter]}
-        counter=$counter+1
-
-        for ((i = 0 ; i < levels ; i++)); do
-            if [[ dir_counter -eq num_of_dirs ]]; then
+    # i have already my array of dirs in rr order so just go through the array and add files
+    let fil_counter=0
+    while [[ fil_counter -lt num_of_files ]]; do
+        for ((i = 0 ; i < dir_counter ; i++)); do
+            if [[ fil_counter -eq num_of_files ]]; then
                 break
             fi
-            
-            tmp_dir=$tmp_dir'/'${dir_array[$dir_counter]}
-            dir_counter=$dir_counter+1
-            echo $tmp_dir'/'${fil_array[$counter]}
-            touch $tmp_dir'/'${fil_array[$counter]}
-            counter=$counter+1
+            tmp_file=${rr_dir_arr[$i]}'/'${fil_array[$i]}
+            echo 'file to be made '${tmp_file}
+            touch $tmp_file
+            fil_counter=$((fil_counter + 1))
         done
-        # echo ${tmp_dir}
-        # mkdir -p $tmp_dir
     done
+
 }
 
 main $*
-
 
