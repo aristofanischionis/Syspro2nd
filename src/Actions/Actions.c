@@ -7,7 +7,6 @@
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
 
-
 int newID(){
     printf("This is the newID function\n");
     return SUCCESS;
