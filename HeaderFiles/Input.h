@@ -3,6 +3,8 @@
 #define MAX_PATH_LEN 100
 #define SUCCESS 0
 #define ERROR 1
+#define YES 2
+#define NO 3
 
 int InputReader(int argc, char *argv[]);
 

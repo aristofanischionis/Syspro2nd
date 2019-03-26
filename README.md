@@ -3,5 +3,5 @@
 shell script to generate random files and folders
 to run multiple mirror_client programms:
 $ make
-$ ./mirror_client -n 1 -c ./common -i ./1_input -m ./1_mirror -b 100 -l log_file1
-$ ./mirror_client -n 2 -c ./common -i ./2_input -m ./2_mirror -b 200 -l log_file2
+./mirror_client -n 1 -c ./common -i ./1_input -m ./1_mirror -b 100 -l log_file1
+./mirror_client -n 2 -c ./common -i ./2_input -m ./2_mirror -b 200 -l log_file2

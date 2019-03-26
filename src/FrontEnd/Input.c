@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/stat.h>
 #include <string.h>
 #include "../../HeaderFiles/Input.h"
 
@@ -27,34 +29,64 @@ void paramChecker(int n, char* argv[], char* toCheck, char** result){
     }
 }
 
-int InputReader(int argc, char* argv[]){
+int dirExists(const char* dirToCheck){
+    struct stat sb;
+    if (stat(dirToCheck, &sb) == 0 && S_ISDIR(sb.st_mode)){
+        return YES;
+    }
+    else{
+        return NO;
+    }
+}
 
+int fileExists(const char* filename){
+    struct stat buffer;   
+    return (stat (filename, &buffer) == 0);
+}
+
+int writeIDfile(const char* path, int id){
+    char buf[MAX_PATH_LEN];
+    char toMake[MAX_PATH_LEN];
+    
+    sprintf(toMake, "%s/%d.id", realpath(path, buf), id);
+    printf("I am going to make file : %s \n", toMake);
+    // check if file already exists
+    if(fileExists(toMake)){
+        printf("File with id %d already exists \n", id);
+        return ERROR;
+    }
+    // continue if it doesn't
+    FILE* fp = fopen(toMake, "w");
+    int pid = getpid();
+    fprintf(fp, "%d", pid);
+    fclose(fp);
+    return SUCCESS;
+}
+
+int InputReader(int argc, char* argv[]){
     int n = argc;
-    // init all the variables to be read as cmd line arguments
     char* idchar;
-    idchar = (char*) malloc(10);
-    strcpy(idchar, "");
     int id;
-    //
     char* commonDir;
-    commonDir = (char*) malloc(MAX_PATH_LEN);
-    strcpy(commonDir, "");
-    //
     char* inputDir;
-    inputDir = (char*) malloc(MAX_PATH_LEN);
-    strcpy(inputDir, "");
-    //
     char* mirrorDir;
-    mirrorDir = (char*) malloc(MAX_PATH_LEN);
-    strcpy(mirrorDir, "");
-    // 
     char* b;
     int bSize;
-    b = (char*) malloc(10);
-    strcpy(b, "");
-    // 
     char* logfile;
+    struct stat st = {0};
+    // init all the variables to be read as cmd line arguments
+    idchar = (char*) malloc(10);
+    commonDir = (char*) malloc(MAX_PATH_LEN);
+    inputDir = (char*) malloc(MAX_PATH_LEN);
+    mirrorDir = (char*) malloc(MAX_PATH_LEN);
+    b = (char*) malloc(10);
     logfile = (char*) malloc(50);
+    // 
+    strcpy(idchar, "");
+    strcpy(commonDir, "");
+    strcpy(inputDir, "");
+    strcpy(mirrorDir, "");
+    strcpy(b, "");
     strcpy(logfile, "");
 
     // read all cmd arguments
@@ -78,6 +110,27 @@ int InputReader(int argc, char* argv[]){
         return ERROR;
     }
     // printf("So the params list is %d, %s, %s, %s, %d, %s \n", id, commonDir, inputDir, mirrorDir, bSize, logfile);
-    
+
+    if(dirExists(inputDir) == NO){
+        printf("input folder doesn't exist, exiting\n");
+        return ERROR;
+    }
+    if(dirExists(mirrorDir) == YES){
+        printf("mirror folder exists, exiting\n");
+        return ERROR;
+    }
+
+    if (stat(commonDir, &st) == -1) {
+        mkdir(commonDir, 0700);
+    }
+    if (stat(mirrorDir, &st) == -1) {
+        mkdir(mirrorDir, 0700);
+    }
+
+    if(writeIDfile(commonDir, id) == ERROR){
+        return ERROR;
+    }
+
     return SUCCESS;
 }
+
