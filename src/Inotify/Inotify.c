@@ -14,7 +14,7 @@
           argv is the list of watched directories.
           Entry 0 of wd and argv is unused. */
 
-static void handle_events(int fd, int wd, char *commonDir)
+static void handle_events(int myID, int fd, int wd, char *commonDir)
 {
     /* Some systems cannot read integer variables if they are not
               properly aligned. On other systems, incorrect alignment may
@@ -74,8 +74,11 @@ static void handle_events(int fd, int wd, char *commonDir)
                 char *dot = strrchr(event->name, '.');
                 if (dot && !strcmp(dot, ".id")){
                     // I found a filename that ends with .id
+                    int thisID = 0;
+                    sscanf(event->name, "%d.id", &thisID);
+                    printf("I found the newid to be %d \n", thisID);
                     if (event->mask & IN_CREATE){
-                        newID();
+                        newID(commonDir , myID, thisID);
                     }
                     else if (event->mask & IN_DELETE){
                         removeID();
@@ -85,9 +88,9 @@ static void handle_events(int fd, int wd, char *commonDir)
                         exit(EXIT_FAILURE);
                     }
                 }
-                else {
-                    printf("The file I found an event for, %s doesn't end to .id\n", event->name);
-                }
+                // else {
+                //     printf("The file I found an event for, %s doesn't end to .id\n", event->name);
+                // }
             }
             else {
                 printf("A directory is created\n");
@@ -96,7 +99,7 @@ static void handle_events(int fd, int wd, char *commonDir)
     }
 }
 
-int inotifyCode(char *commonDir)
+int inotifyCode(int myID, char *commonDir)
 {
     int fd;
     int wd;
@@ -119,7 +122,7 @@ int inotifyCode(char *commonDir)
 
     printf("Listening for events.\n");
     while(1){
-        handle_events(fd, wd, commonDir);
+        handle_events(myID, fd, wd, commonDir);
     }
     
     printf("Listening for events stopped.\n");

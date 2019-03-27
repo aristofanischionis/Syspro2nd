@@ -132,7 +132,7 @@ int InputReader(int argc, char* argv[]){
         return ERROR;
     }
 
-    inotifyCode(commonDir);
+    inotifyCode(id, commonDir);
 
     return SUCCESS;
 }
