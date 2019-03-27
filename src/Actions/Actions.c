@@ -82,8 +82,9 @@ void spawnKids(const char* commonDir, int myID, int newID, const char* inputDir)
                 }
                 // i have the fifo opened to send data
                 // loop over all files of inputDir
+                // they are going to be in folders
                 // and send their filenames to writepipe
-                
+
                 writePipe(fd1, filename);
 
                 close(fd1);
