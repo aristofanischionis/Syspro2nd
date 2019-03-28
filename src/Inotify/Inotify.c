@@ -14,7 +14,7 @@
           argv is the list of watched directories.
           Entry 0 of wd and argv is unused. */
 
-static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char* inputDir)
+static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile)
 {
     /* Some systems cannot read integer variables if they are not
               properly aligned. On other systems, incorrect alignment may
@@ -78,7 +78,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
                     sscanf(event->name, "%d.id", &thisID);
                     printf("I found the newid to be %d \n", thisID);
                     if (event->mask & IN_CREATE){
-                        newID(commonDir, inputDir, myID, thisID, b);
+                        newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile);
                     }
                     else if (event->mask & IN_DELETE){
                         removeID();
@@ -99,7 +99,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
     }
 }
 
-int inotifyCode(int myID, char *commonDir, int b, char* inputDir)
+int inotifyCode(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile)
 {
     int fd;
     int wd;
@@ -122,7 +122,7 @@ int inotifyCode(int myID, char *commonDir, int b, char* inputDir)
 
     printf("Listening for events.\n");
     while(1){
-        handle_events(myID, fd, wd, commonDir, b, inputDir);
+        handle_events(myID, fd, wd, commonDir, b, inputDir, mirrorDir, logfile);
     }
     
     printf("Listening for events stopped.\n");
