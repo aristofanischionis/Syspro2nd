@@ -14,7 +14,7 @@
           argv is the list of watched directories.
           Entry 0 of wd and argv is unused. */
 
-static void handle_events(int myID, int fd, int wd, char *commonDir)
+static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char* inputDir)
 {
     /* Some systems cannot read integer variables if they are not
               properly aligned. On other systems, incorrect alignment may
@@ -78,7 +78,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir)
                     sscanf(event->name, "%d.id", &thisID);
                     printf("I found the newid to be %d \n", thisID);
                     if (event->mask & IN_CREATE){
-                        newID(commonDir , myID, thisID);
+                        newID(commonDir, inputDir, myID, thisID, b);
                     }
                     else if (event->mask & IN_DELETE){
                         removeID();
@@ -99,7 +99,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir)
     }
 }
 
-int inotifyCode(int myID, char *commonDir)
+int inotifyCode(int myID, char *commonDir, int b, char* inputDir)
 {
     int fd;
     int wd;
@@ -122,7 +122,7 @@ int inotifyCode(int myID, char *commonDir)
 
     printf("Listening for events.\n");
     while(1){
-        handle_events(myID, fd, wd, commonDir);
+        handle_events(myID, fd, wd, commonDir, b, inputDir);
     }
     
     printf("Listening for events stopped.\n");
