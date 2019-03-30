@@ -42,13 +42,6 @@ int nameExists(const char* filename){
         } 
     }
     //so, it exists.
-    if(S_ISDIR(info.st_mode)) {
-    //it's a directory
-        return DIR_;
-    } else if(S_ISFIFO(info.st_mode)) {
-    //it's a named pipe
-        return FIFO;
-    }
     return FILE_;
 }
 
