@@ -53,12 +53,12 @@ void findFiles(const char *source, char* SendData, int b) {
         if (isDot(d_name)) continue;
         // if it is a file do stuff
         // char buf[MAX_PATH_LEN];
-        if (nameExists(entry->d_name)) {
+        // if (isREG(d_name)) {
             // entry->d_name is the name
             printf("FileName is %s \n", entry->d_name);
             // write it to pipe
             writePipe(SendData, entry->d_name, b);
-        }
+        // }
     }
     /* After going through all the entries, close the directory. */
     if (closedir(d)) {
@@ -255,7 +255,7 @@ void spawnKids(const char* commonDir, int myID, int newID, const char* inputDir,
                 // {
                 //     printf("%s pipe already exists \n", SendData);
                 // }
-                printf("fifo made!");
+                printf("fifo made!\n");
                 // i have the fifo opened to send data
                 // loop over all files of inputDir
                 // they are going to be in folders
@@ -303,4 +303,50 @@ int newID(const char* commonDir , const char* inputDir, int myID, int newID, int
 int removeID(){
     printf("This is the removeID function\n");
     return SUCCESS;
+}
+
+// call function newID for each id1.id file in common Dir except the id1 == myID
+void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile){
+    DIR *d;
+    /* Open the directory specified by "commonDir". */
+    d = opendir(commonDir);
+    /* Check it was opened. */
+    if (!d) {
+        printf("Cannot open directory commonDir in findFiles\n");
+        return;
+    }
+    printf("I am in syncr!!!!! \n");
+    while (1) {
+        struct dirent *entry;
+        char *d_name;
+
+        /* "Readdir" gets subsequent entries from "d". */
+        entry = readdir(d);
+        if (!entry) {
+            /* There are no more entries in this directory, so break
+            out of the while loop. */
+            break;
+        }
+        d_name = entry->d_name;
+        
+        // if it is the cur folder or the parent
+        if (isDot(d_name)) continue;
+        char *dot = strrchr(d_name, '.');
+        if (dot && !strcmp(dot, ".id")){
+            // I found a filename that ends with .id
+            
+            int thisID = 0;
+            sscanf(d_name, "%d.id", &thisID);
+            if(thisID == myID) continue;
+            // if it is a file do stuff
+            printf("client with id %d found!\n", thisID);
+            // call newID
+            newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile);
+        }
+    }
+    /* After going through all the entries, close the directory. */
+    if (closedir(d)) {
+        fprintf(stderr, "Could not close '%s': %s\n", commonDir, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
 }

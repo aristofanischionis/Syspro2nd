@@ -6,6 +6,7 @@
 #include <string.h>
 #include "../../HeaderFiles/Input.h"
 #include "../../HeaderFiles/Inotify.h"
+#include "../../HeaderFiles/Actions.h"
 
 // parse command line args
 void paramChecker(int n, char* argv[], char* toCheck, char** result){
@@ -29,16 +30,6 @@ void paramChecker(int n, char* argv[], char* toCheck, char** result){
         i++;
     }
 }
-
-// int dirExists(const char* dirToCheck){
-//     struct stat sb;
-//     if (stat(dirToCheck, &sb) == 0 && S_ISDIR(sb.st_mode)){
-//         return YES;
-//     }
-//     else{
-//         return NO;
-//     }
-// }
 
 int nameExists(const char* filename){
     // struct stat buffer;   
@@ -147,7 +138,9 @@ int InputReader(int argc, char* argv[]){
     if(writeIDfile(commonDir, id) == ERROR){
         return ERROR;
     }
-
+    // first sync with all other processes
+    syncr(id, commonDir, bSize, inputDir, mirrorDir, logfile);
+    // begin monitoring commonDir
     inotifyCode(id, commonDir, bSize, inputDir, mirrorDir, logfile);
 
     return SUCCESS;
