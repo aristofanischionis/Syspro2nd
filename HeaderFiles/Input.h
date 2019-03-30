@@ -5,7 +5,10 @@
 #define ERROR 1
 #define YES 2
 #define NO 3
+#define FILE_ 4
+#define DIR_ 5
+#define FIFO 6
 
 int InputReader(int argc, char *argv[]);
-
+int nameExists(const char* filename);
 #endif

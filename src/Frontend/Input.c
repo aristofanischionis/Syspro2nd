@@ -30,34 +30,50 @@ void paramChecker(int n, char* argv[], char* toCheck, char** result){
     }
 }
 
-int dirExists(const char* dirToCheck){
-    struct stat sb;
-    if (stat(dirToCheck, &sb) == 0 && S_ISDIR(sb.st_mode)){
-        return YES;
-    }
-    else{
-        return NO;
-    }
-}
+// int dirExists(const char* dirToCheck){
+//     struct stat sb;
+//     if (stat(dirToCheck, &sb) == 0 && S_ISDIR(sb.st_mode)){
+//         return YES;
+//     }
+//     else{
+//         return NO;
+//     }
+// }
 
-int fileExists(const char* filename){
-    struct stat buffer;   
-    return (stat (filename, &buffer) == 0);
+int nameExists(const char* filename){
+    // struct stat buffer;   
+    // return (stat (filename, &buffer) == 0);
+    struct stat info;
+    if(lstat(filename,&info) != 0) {
+        if(errno == ENOENT) {
+        //  doesn't exist
+            return NO;
+        } 
+    }
+    //so, it exists.
+    if(S_ISDIR(info.st_mode)) {
+    //it's a directory
+        return DIR_;
+    } else if(S_ISFIFO(info.st_mode)) {
+    //it's a named pipe
+        return FIFO;
+    }
+    return FILE_;
 }
 
 int writeIDfile(const char* path, int id){
     char buf[MAX_PATH_LEN];
     char toMake[MAX_PATH_LEN];
-    
+    FILE* fp;
     sprintf(toMake, "%s/%d.id", realpath(path, buf), id);
     printf("I am going to make file : %s \n", toMake);
     // check if file already exists
-    if(fileExists(toMake)){
+    if(nameExists(toMake) == FILE_){
         printf("File with id %d already exists \n", id);
         return ERROR;
     }
     // continue if it doesn't
-    FILE* fp = fopen(toMake, "w");
+    fp = fopen(toMake, "w");
     int pid = getpid();
     fprintf(fp, "%d", pid);
     fclose(fp);
@@ -112,11 +128,11 @@ int InputReader(int argc, char* argv[]){
     }
     // printf("So the params list is %d, %s, %s, %s, %d, %s \n", id, commonDir, inputDir, mirrorDir, bSize, logfile);
 
-    if(dirExists(inputDir) == NO){
+    if(nameExists(inputDir) == NO){
         printf("input folder doesn't exist, exiting\n");
         return ERROR;
     }
-    if(dirExists(mirrorDir) == YES){
+    if(nameExists(mirrorDir) == DIR_){
         printf("mirror folder exists, exiting\n");
         return ERROR;
     }

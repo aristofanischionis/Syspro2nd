@@ -52,14 +52,13 @@ void findFiles(const char *source, char* SendData, int b) {
         // if it is the cur folder or the parent
         if (isDot(d_name)) continue;
         // if it is a file do stuff
-        char buf[MAX_PATH_LEN];
-        if (isREG(realpath(entry->d_name, buf))) {
+        // char buf[MAX_PATH_LEN];
+        if (nameExists(entry->d_name)) {
             // entry->d_name is the name
             printf("FileName is %s \n", entry->d_name);
             // write it to pipe
             writePipe(SendData, entry->d_name, b);
         }
-        
     }
     /* After going through all the entries, close the directory. */
     if (closedir(d)) {
@@ -129,18 +128,16 @@ void readFile(int parentfd, int b, int targetfd){
 
 void writePipe(char* SendData, const char* filename, int b){
     int fd, i, iter, rem;
-    long size;
-    size_t len;
+    unsigned int size;
+    unsigned short len;
     // open pipe
-    if ((fd = open(SendData, O_WRONLY)) < 0)
-    {
-        perror("fifo open error");
-        exit(1);
-    }
+    printf("Before %s write end opens \n", SendData);
+    fd = open(SendData, O_WRONLY);
+    printf("After %s write end opens \n", SendData);
     // write len of file name
     len = strlen(filename);
-    printf("Size of name is %ld and name %s \n", len, filename);
-    if (write(fd, &len, 2) == -1)
+    printf("Size of name is %hu and name %s \n", len, filename);
+    if (write(fd, &len, sizeof(len)) == -1)
     {
         perror(" Error in Writing in pipe\n");
         exit(2);
@@ -153,8 +150,8 @@ void writePipe(char* SendData, const char* filename, int b){
         exit(2);
     }
     // len of file
-    size = calculateFileSize(filename);
-    if (write(fd, &size, 4) == -1)
+    size = (unsigned int)calculateFileSize(filename);
+    if (write(fd, &size, sizeof(size)) == -1)
     {
         perror(" Error in Writing in pipe\n");
         exit(2);
@@ -162,7 +159,7 @@ void writePipe(char* SendData, const char* filename, int b){
     iter = size / b;
     rem = size % b;
 
-    printf("I calculated size %ld, iter %d, rem %d \n", size, iter, b);
+    printf("I calculated size %hu, iter %d, rem %d \n", size, iter, b);
 
     for(i=0;i<iter;i++){
         // write part of the file data
@@ -179,27 +176,25 @@ void readPipe(int myID, char* ReceiveData, char* mirrorDir, char* logfile, int b
     // open pipe
     int fd, i, iter, rem, newFD;
     FILE* logfp;
-    long nread, size;
-    size_t len;
+    long nread = 0;
+    unsigned int size = 0;
+    unsigned short len = 0;
     char* filename;
     char* newFile;
     newFile = malloc(50);
     filename = malloc(50);
     strcpy(filename, "");
     strcpy(newFile, "");
-
-    if ((fd = open(ReceiveData, O_RDONLY)) < 0)
-    {
-        perror("fifo open error");
-        exit(1);
-    }
-    if((nread = read(fd, &len, 2)) !=2 ){
+    printf("Before %s read end opens \n", ReceiveData);
+    fd = open(ReceiveData, O_RDONLY);
+    printf("After %s read end opens \n", ReceiveData);
+    if((nread = read(fd, &len, sizeof(unsigned short))) != sizeof(unsigned short) ){
         printf("I read %ld chars\n", nread);
     }
     if((nread = read(fd, &filename, len)) != len ){
         printf("I read %ld chars\n", nread);
     }
-    if((nread = read(fd, &size, 4)) != 4 ){
+    if((nread = read(fd, &size, sizeof(unsigned int))) != sizeof(unsigned int) ){
         printf("I read %ld chars\n", nread);
     }
     // make new file in folder
@@ -218,7 +213,7 @@ void readPipe(int myID, char* ReceiveData, char* mirrorDir, char* logfile, int b
     readFile(fd, rem, newFD);
     // write data in log
     char logdata[100];
-    sprintf(logdata, "Name: %s, Size: %ld ", filename, size);
+    sprintf(logdata, "Name: %s, Size: %hu ", filename, size);
     printf(" ----------> to be written in log %s \n", logdata);
     fwrite(logdata, 1, 100, logfp);
     
@@ -252,34 +247,37 @@ void spawnKids(const char* commonDir, int myID, int newID, const char* inputDir,
             if (i == 0)
             { // child 1
                 printf("I am kid1------------------> !!! \n");
-                if (mkfifo(SendData, 0666) == EEXIST)
-                {
-                    printf("%s pipe already exists \n", SendData);
+                if(nameExists(SendData) != FIFO){
+                    printf("Fifo desn't exist socreate \n");
+                    mkfifo(SendData, 0666);
                 }
-                // open pipe
+                // if (mkfifo(SendData, 0666) == EEXIST)
+                // {
+                //     printf("%s pipe already exists \n", SendData);
+                // }
                 printf("fifo made!");
                 // i have the fifo opened to send data
                 // loop over all files of inputDir
                 // they are going to be in folders
                 // and send their filenames to writepipe
-                printf("Right before findfileessssssssss\n");
                 findFiles(inputDir, SendData, b);
 
-                remove(SendData);
+                unlink(SendData);
                 exit(1);
             }
             else if (i == 1)
             { // child 2
                 printf("I am kid2-----------------> !!! \n");
-                if (mkfifo(ReceiveData, 0666) == EEXIST)
-                {
-                    printf("%s pipe already exists \n", ReceiveData);
+                if(nameExists(ReceiveData) != FIFO){
+                    printf("Fifo desn't exist so create \n");
+                    mkfifo(ReceiveData, 0666);
                 }
-                printf("fifo made for receiving data !");
+                
+                printf("fifo made for receiving data !\n");
                 // i have the fifo opened to receive data
                 readPipe(myID, ReceiveData, mirrorDir, logfile, b);
 
-                remove(ReceiveData);
+                unlink(ReceiveData);
                 exit(0);
             }
         }
