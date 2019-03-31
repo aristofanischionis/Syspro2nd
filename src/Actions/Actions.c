@@ -82,7 +82,7 @@ void writeFile(const char* filename, int parentfd, int b){
     char *file;
     file = malloc(b);
     strcpy(file, "");
-
+    printf("the file ---> %s \n", filename);
     fp = fopen(filename, "r");
     if(fp == NULL){
         printf("Unable to open file %s \n", filename);
@@ -93,7 +93,7 @@ void writeFile(const char* filename, int parentfd, int b){
         fprintf(stderr, "read from file failed.\n");
         exit(EXIT_FAILURE);
     }
-    // printf("write file read : %s \n", file);
+    printf("write file read : %s \n", file);
     if((write(parentfd, file, b)) < 0){
         fprintf(stderr, "Write to pipe failed.\n");
         exit(EXIT_FAILURE);
@@ -137,14 +137,14 @@ void writePipe(char* SendData, const char* filename, int b, char* actualPath){
     printf("WP->Size of name is %hu and name %s \n", len, filename);
     if (write(fd, &len, 2) < 0)
     {
-        perror(" Error in Writing in pipe\n");
+        perror(" Error in Writing in pipe1\n");
         exit(2);
     }
     // write filename
     // len + 1 maybe
     if (write(fd, filename, len + 1) < 0)
     {
-        perror(" Error in Writing in pipe\n");
+        perror(" Error in Writing in pipe2\n");
         exit(2);
     }
     // len of file
@@ -152,7 +152,7 @@ void writePipe(char* SendData, const char* filename, int b, char* actualPath){
 
     if (write(fd, &size, 4) < 0)
     {
-        perror(" Error in Writing in pipe\n");
+        perror(" Error in Writing in pipe3\n");
         exit(2);
     }
     iter = size / b;
@@ -196,14 +196,8 @@ void readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* log
         printf("I read %ld chars\n", nread);
     }
     // make new file in folder
-    // if (mirrorDir[0] == '.') memmove(mirrorDir, mirrorDir+1, strlen(mirrorDir));
-
     sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
-    // printf("I am %d and i write in Newfile name is %s \n", myID, newFile);
-    //
-    // int newFD = open(newFile, O_CREAT);
-    // close(newFD);
-    //
+    
     iter = size / b;
     rem = size - iter*size;
     // printf("size %hu, Rem is -> %d \n", size, rem);
