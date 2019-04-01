@@ -31,7 +31,7 @@ void paramChecker(int n, char* argv[], char* toCheck, char** result){
     }
 }
 
-int nameExists(const char* filename){
+int nameExists(char* filename){
     // struct stat buffer;   
     // return (stat (filename, &buffer) == 0);
     struct stat info;
@@ -45,7 +45,7 @@ int nameExists(const char* filename){
     return FILE_;
 }
 
-int writeIDfile(const char* path, int id){
+int writeIDfile(char* path, int id){
     char buf[MAX_PATH_LEN];
     char toMake[MAX_PATH_LEN];
     FILE* fp;

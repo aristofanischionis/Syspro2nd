@@ -10,5 +10,5 @@
 #define FIFO 6
 
 int InputReader(int argc, char *argv[]);
-int nameExists(const char* filename);
+int nameExists(char* filename);
 #endif
