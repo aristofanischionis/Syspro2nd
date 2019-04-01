@@ -10,8 +10,29 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <signal.h>
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
+pid_t parentPid;
+int signalsReceived = 0;
+int doAgain = NO;
+
+void handler(){
+    signal(SIGUSR2, handler);
+    printf("PARENT: I have received a SIGUSR2, FROM MY KIDDO\n");
+    if(signalsReceived == 3){
+        //maximum number achieved
+        signalsReceived = 0;
+        // do what i m  supposed
+        doAgain = ERROR;
+    }
+    else {
+        signalsReceived++;
+        // call spawn kids
+        doAgain = YES;
+    }
+}
+
 void writePipe(char* SendData, int b, char* actualPath, char* inputDir);
 
 // Make an identical path to sourcePath, but with backupBase as the root
@@ -80,6 +101,7 @@ void writeFinal(int fd)
     if (write(fd, final, 3) <0)
     {
         perror(" Error in Writing in pipe\n");
+        kill(parentPid, SIGUSR2);
         exit(NO);
     }
 }
@@ -89,6 +111,7 @@ long calculateFileSize(char* filename){
     fp = fopen(filename, "r");
     if(fp == NULL){
         printf("Unable to open file %s \n", filename);
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     fseek(fp, 0L, SEEK_END);
@@ -107,16 +130,19 @@ void writeFile(char* filename, int parentfd, int b){
     fp = fopen(filename, "r");
     if(fp == NULL){
         printf("Unable to open file %s \n", filename);
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // read 
     if(fread(file, 1, b, fp) < 0){
         fprintf(stderr, "read from file failed.\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     printf("write file read : %s \n", file);
     if((write(parentfd, file, b)) < 0){
         fprintf(stderr, "Write to pipe failed.\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
 
@@ -128,6 +154,7 @@ void readFile(int parentfd, int b, char* newFile){
     FILE* newFD = fopen(newFile, "a");
     if (newFD == NULL) {
         perror("Failed------------>: ");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     char *file;
@@ -136,11 +163,13 @@ void readFile(int parentfd, int b, char* newFile){
     if (read(parentfd, file, b) < 0)
     {
         perror(" Error in reading pipe\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // printf("readFile has read : %s bytes %d , file %s\n", file, b, newFile);
     if(fprintf(newFD, "%s", file) < 0){
         perror("write to newfile failed\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
 
@@ -168,6 +197,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     if (write(fd, &len, 2) < 0)
     {
         perror(" Error in Writing in pipe1\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // write 
@@ -175,6 +205,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     if (write(fd, pathToBackup, len + 1) < 0)
     {
         perror(" Error in Writing in pipe2\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // len of file
@@ -183,6 +214,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     if (write(fd, &size, 4) < 0)
     {
         perror(" Error in Writing in pipe3\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     iter = size / b;
@@ -236,6 +268,7 @@ int makeFile(char* filename){
         execl("/bin/mkdir", "mkdir", "-p", path, NULL);
     } else if (pid < 0) {
         perror("pid<0 in mkdir\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
 
@@ -248,11 +281,26 @@ int makeFile(char* filename){
         execl("/bin/touch", "touch", filename, NULL);
     } else if (pid < 0) {
         perror("pid<0 in touch\n");
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     while ((wpid = wait(&status)) > 0);
     
     return YES;
+}
+
+int deleteFolder(char* folder){
+    pid_t pid, wpid;
+    int status = 0;
+    pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", folder, NULL);
+    } else if (pid < 0) {
+        perror("pid<0 in rm -rf\n");
+        return ERROR;
+    }
+    while ((wpid = wait(&status)) > 0); 
+    return SUCCESS;
 }
 
 // readpipe needs the input dir base from the other process
@@ -315,21 +363,26 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     return (flag == 1) ? YES : NO;
 }
 
-void spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char* mirrorDir, char* logfile){
+int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char* mirrorDir, char* logfile){
+    // if(doAgain == NO){
+    //     return ERROR;
+    // }
     char SendData[FIFO_LEN];
     char ReceiveData[FIFO_LEN];
     char* filename;
     int flag ;
     filename = malloc(50);
     strcpy(filename, "");
+    // setting the signal receiver
+    signal(SIGUSR2, handler);
+    
     // giving name to each fifo
-
     sprintf(SendData, "%s/%d_to_%d.fifo", commonDir, myID, newID);
     sprintf(ReceiveData, "%s/%d_to_%d.fifo", commonDir, newID, myID);
     //
     // printf("senddata ----> %s \n", SendData);
     // printf("recdata ------> %s \n", ReceiveData);
-
+    parentPid = getpid();
     // forking the kids
     pid_t pid, wpid;
     for (int i = 0; i < 2; i++)
@@ -362,6 +415,7 @@ void spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char
                 if(flag == YES){
                     exit(YES);
                 }
+                kill(parentPid,SIGUSR2);
                 exit(NO);
             }
         }
@@ -369,25 +423,47 @@ void spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char
     // parent
     int status = 0;
     while ((wpid = wait(&status)) > 0){
-        if(WIFEXITED(status)){ 
-            int exit_status = WEXITSTATUS(status);         
+        printf("status-------------->%d\n", status);
+        if(WIFEXITED(status)){
+            int exit_status = WEXITSTATUS(status);      
             printf("Exit status of %d was (%s)\n", (int)wpid,
                 (exit_status == YES) ? "successful" : "not successful"); 
         }
     }
+    if(doAgain == YES){
+        // delete mirror
+        if(deleteFolder(mirrorDir) == ERROR){
+            perror("Folder cannot be deleted : \n");
+            return ERROR;
+        }
+        struct stat st = {0};
+        if (stat(mirrorDir, &st) == -1) {
+            mkdir(mirrorDir, 0700);
+        }
+        // retry
+        spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile);
+    }
+    else if (doAgain == ERROR){
+        // reached 3 times
+        return ERROR;
+    }
+    return SUCCESS;
 }
 
 int newID(char* commonDir , char* inputDir, int myID, int newID, int b, char* mirrorDir, char* logfile){
     // printf("This is the newID function\n");
     // make the corresponding folder in mirrorDir
+    int retv;
     struct stat st = {0};
     char newFold[50];
     sprintf(newFold, "%s/%d", mirrorDir, newID);
-    // printf("new fold is ------------> %s\n", newFold);
     if (stat(newFold, &st) == -1) {
         mkdir(newFold, 0700);
     }
-    spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile);
+    retv = spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile);
+    if(retv == ERROR){
+        return ERROR;
+    }
     return SUCCESS;
 }
 
@@ -438,6 +514,7 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
     /* After going through all the entries, close the directory. */
     if (closedir(d)) {
         fprintf(stderr, "Could not close '%s': %s\n", commonDir, strerror(errno));
+        kill(parentPid,SIGUSR2);
         exit(NO);
     }
 }
