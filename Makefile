@@ -1,6 +1,6 @@
-OBJS 	= main.o Input.o Inotify.o Actions.o
-SOURCE	= main.c src/Frontend/Input.c src/Inotify/Inotify.c src/Actions/Actions.c
-HEADER  = HeaderFiles/Input.h HeaderFiles/Inotify.h HeaderFiles/Actions.h
+OBJS 	= main.o Input.o Inotify.o Actions.o FileOperations.o PipeOperations.o
+SOURCE	= main.c src/Frontend/Input.c src/Inotify/Inotify.c src/Actions/Actions.c src/PipeOperations/PipeOperations.c src/FileOperations/FileOperations.c
+HEADER  = HeaderFiles/Input.h HeaderFiles/Inotify.h HeaderFiles/Actions.h HeaderFiles/PipeOperations.h HeaderFiles/FileOperations.h 
 OUT  	= mirror_client
 CC		= gcc
 FLAGS   = -g -c -Wall
@@ -22,6 +22,12 @@ Inotify.o: src/Inotify/Inotify.c
 
 Actions.o: src/Actions/Actions.c
 	$(CC) $(FLAGS) src/Actions/Actions.c
+
+FileOperations.o: src/FileOperations/FileOperations.c
+	$(CC) $(FLAGS) src/FileOperations/FileOperations.c
+
+PipeOperations.o: src/PipeOperations/PipeOperations.c
+	$(CC) $(FLAGS) src/PipeOperations/PipeOperations.c
 
 
 # clean house

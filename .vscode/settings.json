@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "input.h": "c",
-        "inotify.h": "c"
+        "inotify.h": "c",
+        "fcntl.h": "c",
+        "actions.h": "c",
+        "limits.h": "c",
+        "types.h": "c"
     }
 }
