@@ -8,19 +8,11 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h>
-// #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/FileOperations.h"
+#include <signal.h>
 pid_t parentPid;
-
-
-// int isREG(char *path)
-// {
-//     struct stat path_stat;
-//     stat(path, &path_stat);
-//     return S_ISREG(path_stat.st_mode);
-// }
 
 // Make an identical path to sourcePath, but with backupBase as the root
 char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
@@ -48,6 +40,9 @@ char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
 
 void findFiles(char *source, int indent, char* SendData, int b, char* inputDir) {
     parentPid = getppid();
+    char* pathToBackup;
+    pathToBackup = malloc(MAX_PATH_LEN);
+    strcpy(pathToBackup, "");
     DIR *dir;
     struct dirent *entry;
     char path[MAX_PATH_LEN];
@@ -64,6 +59,8 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir) 
                     fprintf(stderr, "stat() error on %s: %s\n", path, strerror(errno));
                 }
                 else if (S_ISDIR(info.st_mode)){
+                    // pathToBackup = formatBackupPath(inputDir, "", path);
+                    // makeFolder(pathToBackup);
                     findFiles(path, indent+1, SendData, b, inputDir);
                 }
                 else {
@@ -88,6 +85,31 @@ long calculateFileSize(char* filename){
     rewind(fp);
     fclose(fp);
     return size;
+}
+
+void makeFolder(char* foldername){
+    if(foldername && !foldername[0]){
+        printf("foldername is empty \n");
+        return;
+    }
+    printf("Folder to be made %s\n", foldername);
+    // struct stat st = {0};
+    // if (stat(foldername, &st) == -1) {
+    //     mkdir(foldername, 0700);
+    // }
+    // make any subdirectories first using mkdir -p
+    pid_t pid, wpid;
+    int status = 0;
+    pid = fork();
+    if (pid == 0) {
+        execl("/bin/mkdir", "mkdir", "-p", foldername, NULL);
+    } else if (pid < 0) {
+        perror("pid<0 in mkdir\n");
+        kill(parentPid,SIGUSR2);
+        exit(NO);
+    }
+
+    while ((wpid = wait(&status)) > 0); 
 }
 
 int makeFile(char* filename){
@@ -122,16 +144,17 @@ int makeFile(char* filename){
     // make any subdirectories first using mkdir -p
     pid_t pid, wpid;
     int status = 0;
-    pid = fork();
-    if (pid == 0) {
-        execl("/bin/mkdir", "mkdir", "-p", path, NULL);
-    } else if (pid < 0) {
-        perror("pid<0 in mkdir\n");
-        kill(parentPid,SIGUSR2);
-        exit(NO);
-    }
+    // pid = fork();
+    // if (pid == 0) {
+    //     execl("/bin/mkdir", "mkdir", "-p", path, NULL);
+    // } else if (pid < 0) {
+    //     perror("pid<0 in mkdir\n");
+    //     kill(parentPid, SIGUSR2);
+    //     exit(NO);
+    // }
 
-    while ((wpid = wait(&status)) > 0); 
+    // while ((wpid = wait(&status)) > 0);
+    makeFolder(path); 
     
     // then use touch
     pid = fork();
