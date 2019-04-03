@@ -92,7 +92,7 @@ void makeFolder(char* foldername){
         printf("foldername is empty \n");
         return;
     }
-    printf("Folder to be made %s\n", foldername);
+    // printf("Folder to be made %s\n", foldername);
     // struct stat st = {0};
     // if (stat(foldername, &st) == -1) {
     //     mkdir(foldername, 0700);

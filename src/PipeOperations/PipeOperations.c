@@ -4,22 +4,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-// #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h>
-// #include <limits.h>
 #include <signal.h>
-// #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/FileOperations.h"
 
 pid_t parentPid;
 
-volatile sig_atomic_t alarmFlag = 0;
-
-void handle_alarm() {
-    alarmFlag = 1;
+void handle_alarm(){
+    printf("A read/write operation in fifo took longer than expected\n");
+    kill(parentPid, SIGUSR2);
 }
 
 void writeFinal(int fd){   
