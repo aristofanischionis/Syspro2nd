@@ -26,55 +26,95 @@ void writeFinal(int fd){
     }
 }
 
-void writeFile(char* filename, int parentfd, int b){
-    FILE* fp;
+void writeFile(char* filename, int parentfd, int size, int b){
+    int fd;
     char *file;
-    file = malloc(b);
+    file = malloc(b+1);
+    ssize_t r;
     strcpy(file, "");
-    // printf("the file ---> %s \n", filename);
-    fp = fopen(filename, "r");
-    if(fp == NULL){
-        perror("Unable to open file: ");
-        kill(parentPid,SIGUSR2);
-        exit(NO);
+    
+    fd = open(filename, O_RDONLY);
+    while(size > 0){
+        strcpy(file, "");
+        if((r = read(fd, file, b)) < 0){
+            perror("read from file failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        file[r] = '\0';
+        if((write(parentfd, file, b)) < 0){
+            perror("Write to pipe failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        size -= b;
+        if((size <= b) && (size != 0)){
+            free(file);
+            file = malloc(size+1);
+            strcpy(file, "");
+            
+            if((r = read(fd, file, b)) < 0){
+                perror("read from file failed: ");
+                kill(parentPid,SIGUSR2);
+                exit(NO);
+            }
+            file[r] = '\0';
+            if((write(parentfd, file, size)) < 0){
+                perror("Write to pipe failed: ");
+                kill(parentPid,SIGUSR2);
+                exit(NO);
+            }
+            size = 0;
+        }
     }
-    // read 
-    if(fread(file, 1, b, fp) < 0){
-        perror("read from file failed: ");
-        kill(parentPid,SIGUSR2);
-        exit(NO);
-    }
-    // printf("write file read : %s \n", file);
-    if((write(parentfd, file, b+1)) < 0){
-        perror("Write to pipe failed: ");
-        kill(parentPid,SIGUSR2);
-        exit(NO);
-    }
-
+    
     free(file);      
-    fclose(fp);
+    close(fd);
 }
 
-void readFile(int parentfd, int b, char* newFile){
-    FILE* newFD = fopen(newFile, "a");
+void readFile(int parentfd, int size, char* newFile, int b){
+    FILE* newFD = fopen(newFile, "w");
+    char *file;
+    ssize_t r;
+    file = malloc(b+1);
+    strcpy(file, "");
+
     if (newFD == NULL) {
         perror("Failed to open file: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
-    char *file;
-    file = malloc(b+1);
-    strcpy(file, "");
-    if (read(parentfd, file, b+1) < 0){
-        perror(" Error in reading pipe ");
-        kill(parentPid,SIGUSR2);
-        exit(NO);
-    }
-    // printf("readFile has read : %s bytes %d , file %s\n", file, b, newFile);
-    if(fprintf(newFD, "%s", file) < 0){
-        perror("write to newfile failed: ");
-        kill(parentPid,SIGUSR2);
-        exit(NO);
+
+    while(size > 0){
+        if ((r = read(parentfd, file, b)) < 0){
+            perror(" Error in reading pipe ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        file[r] = '\0';
+
+        if(fprintf(newFD, "%s", file) < 0){
+            perror("write to newfile failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        size -= b;
+        if((size <= b) && (size != 0)){
+            free(file);
+            file = malloc(size+1);
+            if ((r = read(parentfd, file, size)) < 0){
+                perror(" Error in reading pipe ");
+                kill(parentPid,SIGUSR2);
+                exit(NO);
+            }
+            file[r] = '\0';
+            if(fprintf(newFD, "%s", file) < 0){
+                perror("write to newfile failed: ");
+                kill(parentPid,SIGUSR2);
+                exit(NO);
+            }
+            break;
+        }
     }
 
     free(file);
@@ -83,7 +123,7 @@ void readFile(int parentfd, int b, char* newFile){
 
 void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     parentPid = getppid();
-    int fd, i, iter = 0, rem = 0;
+    int fd;
     char s[5];
     char len[3];
     unsigned short l = 0;
@@ -118,7 +158,6 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     // len of file
     size = (unsigned int)calculateFileSize(actualPath);
     sprintf(s, "%u", size);
-    printf("Size is %s \n", s);
 
     if (write(fd, s, 5) < 0){
         perror(" Error in Writing in pipe3: ");
@@ -126,14 +165,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
         exit(NO);
     }
 
-    iter = size / b;
-    rem = size - (iter*size);
-    // printf("I calculated size %hu, iter %d, rem %d \n", size, iter, rem);
-    for(i=0;i<iter;i++){
-        // write part of the file data
-        writeFile(actualPath, fd, b);
-    }
-    writeFile(actualPath, fd, rem);
+    writeFile(actualPath, fd, size, b);
     // wrote all of the file in fd
     // actual file in chunks size of b
     free(pathToBackup);
@@ -143,7 +175,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
 int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logfile, int b){
     // open pipe
     parentPid = getppid();
-    int fd, i, iter, rem = 0;
+    int fd;
     FILE* logfp;
     long nread = 0;
     unsigned int size = 0;
@@ -170,15 +202,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
-        // if(!strcmp(s, "00")){
-        //     printf("I read the 00 bytes from pipe so I m done\n");
-        //     // successful
-        //     close(fd);
-        //     return YES;
-        // }
-        // else {
-        //     len = atoi(s);
-        // }
+        
         len = atoi(l);
         if(len == 0){
             printf("I read the 00 bytes from pipe so I m done\n");
@@ -188,17 +212,14 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             close(fd);
             return YES;
         }
-        printf("i read len -----------> %d\n", len);
-        // if((nread = read(fd, &len, 2)) < 0){
-        //     printf("I read %ld chars\n", nread);
-        // }
+        
         if((nread = read(fd, filename, len + 1)) < 0){
             printf("I read %ld chars\n", nread);
             perror(" Error in reading pipe2: ");
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
-        printf("-----------------> %s\n", filename);
+
         if((nread = read(fd, s, 5)) < 0){
             printf("I read %ld chars\n", nread);
             perror(" Error in reading pipe3: ");
@@ -213,14 +234,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         printf("file to be made is %s \n", newFile);
         makeFile(newFile);
 
-        iter = size / b;
-        rem = size - iter*size;
-        // printf("size %hu, Rem is -> %d \n", size, rem);
-        for(i=0;i<iter;i++){
-            readFile(fd, b, newFile);
-            // after i read a part of file open the new file in mirr and append data
-        }
-        readFile(fd, rem, newFile);
+        readFile(fd, size, newFile, b);
         
         logfp = fopen(logfile, "a");
         // write data in log
