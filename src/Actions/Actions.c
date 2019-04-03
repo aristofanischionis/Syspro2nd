@@ -12,6 +12,8 @@
 #include <signal.h>
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
+#include "../../HeaderFiles/PipeOperations.h"
+#include "../../HeaderFiles/FileOperations.h"
 
 pid_t parentPid;
 int signalsReceived = 0;

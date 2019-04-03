@@ -17,8 +17,9 @@
 pid_t parentPid;
 
 void writeFinal(int fd){   
-    char final[2] = "00";
-    if (write(fd, final, 2) < 2){
+    char final[3];
+    strcpy(final, "00");
+    if (write(fd, final, 3) < 0){
         perror(" Error in Writing Final\n");
         kill(parentPid, SIGUSR2);
         exit(NO);
@@ -38,13 +39,13 @@ void writeFile(char* filename, int parentfd, int b){
         exit(NO);
     }
     // read 
-    if(fread(file, 1, b, fp) < b){
+    if(fread(file, 1, b, fp) < 0){
         perror("read from file failed: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // printf("write file read : %s \n", file);
-    if((write(parentfd, file, b)) < b){
+    if((write(parentfd, file, b+1)) < 0){
         perror("Write to pipe failed: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
@@ -62,15 +63,15 @@ void readFile(int parentfd, int b, char* newFile){
         exit(NO);
     }
     char *file;
-    file = malloc(b);
+    file = malloc(b+1);
     strcpy(file, "");
-    if (read(parentfd, file, b) < b){
+    if (read(parentfd, file, b+1) < 0){
         perror(" Error in reading pipe ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // printf("readFile has read : %s bytes %d , file %s\n", file, b, newFile);
-    if(fprintf(newFD, "%s", file) < b){
+    if(fprintf(newFD, "%s", file) < 0){
         perror("write to newfile failed: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
@@ -83,11 +84,15 @@ void readFile(int parentfd, int b, char* newFile){
 void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     parentPid = getppid();
     int fd, i, iter = 0, rem = 0;
-    unsigned int size;
-    unsigned short len;
+    char s[5];
+    char len[3];
+    unsigned short l = 0;
+    unsigned int size = 0;
     char* pathToBackup;
     pathToBackup = malloc(MAX_PATH_LEN);
     strcpy(pathToBackup, "");
+    strcpy(s, "");
+    strcpy(len, "");
     // open pipe
     printf("Before %s write end opens \n", SendData);
     fd = open(SendData, O_WRONLY);
@@ -96,23 +101,26 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     // cut the first part of actual path that is not necessary in backup
     // name of interest to concat for the other process
     pathToBackup = formatBackupPath(inputDir, "", actualPath);
-    len = strlen(pathToBackup);
-    printf("WP->Size of name is %hu and name %s \n", len, pathToBackup);
-    if (write(fd, &len, 2) < 2){
+    l = strlen(pathToBackup);
+    sprintf(len, "%hu", l);
+    printf("WP->Size of name is %s and name %s \n", len, pathToBackup);
+    if (write(fd, len, 3) < 0){
         perror(" Error in Writing in pipe1: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
-
-    if (write(fd, pathToBackup, len + 1) < (len + 1)){
+    printf("-> %s , l == %hu \n", pathToBackup, l);
+    if (write(fd, pathToBackup, l + 1) < 0){
         perror(" Error in Writing in pipe2: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
     // len of file
     size = (unsigned int)calculateFileSize(actualPath);
+    sprintf(s, "%u", size);
+    printf("Size is %s \n", s);
 
-    if (write(fd, &size, 4) < 4){
+    if (write(fd, s, 5) < 0){
         perror(" Error in Writing in pipe3: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
@@ -140,46 +148,65 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     long nread = 0;
     unsigned int size = 0;
     unsigned short len = 0;
-    char filename[300];
-    char newFile[300];
-    char s[3];
+    char s[5];
+    char l[3];
+    char* filename;
+    char* newFile;
+    filename = malloc(MAX_PATH_LEN);
+    newFile = malloc(MAX_PATH_LEN);
+    // char s[3];
     printf("Before %s read end opens \n", ReceiveData);
     fd = open(ReceiveData, O_RDONLY);
     printf("After %s read end opens \n", ReceiveData);
     // first read the first two digits, if they are 00, then exit successfully,
     // if they are not continue it is the len of next file
     while(1){
-        if((nread = read(fd, s, 2)) < 2){
+        strcpy(s, "");
+        strcpy(l, "");
+        strcpy(filename, "");
+        strcpy(newFile, "");
+        if((nread = read(fd, l, 3)) < 0){
             perror(" Error in reading pipe1: ");
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
-        if(!strcmp(s, "00")){
+        // if(!strcmp(s, "00")){
+        //     printf("I read the 00 bytes from pipe so I m done\n");
+        //     // successful
+        //     close(fd);
+        //     return YES;
+        // }
+        // else {
+        //     len = atoi(s);
+        // }
+        len = atoi(l);
+        if(len == 0){
             printf("I read the 00 bytes from pipe so I m done\n");
             // successful
+            free(filename);
+            free(newFile);
             close(fd);
             return YES;
         }
-        else {
-            len = atoi(s);
-        }
-
+        printf("i read len -----------> %d\n", len);
         // if((nread = read(fd, &len, 2)) < 0){
         //     printf("I read %ld chars\n", nread);
         // }
-        if((nread = read(fd, filename, len + 1)) < (len+1)){
+        if((nread = read(fd, filename, len + 1)) < 0){
             printf("I read %ld chars\n", nread);
             perror(" Error in reading pipe2: ");
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
-
-        if((nread = read(fd, &size, 4)) < 0){
+        printf("-----------------> %s\n", filename);
+        if((nread = read(fd, s, 5)) < 0){
             printf("I read %ld chars\n", nread);
             perror(" Error in reading pipe3: ");
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
+        printf("size is %s \n", s);
+        size = atoi(s);
         // make new file in folder
         // in filename i have the actual path
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
