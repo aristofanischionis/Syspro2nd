@@ -92,7 +92,7 @@ function main () {
     # create random file names
     # echo 'lets make our nice files'
     for ((i = 0 ; i < num_of_files ; i++)); do
-        fil_array[$i]=$(random_string)'.file'
+        fil_array[$i]=$(random_string)
         # fil_array[$i]='f'${i}
         # echo ${fil_array[$i]}
     done

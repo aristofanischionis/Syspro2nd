@@ -1,6 +1,6 @@
 #ifndef INPUT_HEADER
 #define INPUT_HEADER
-#define MAX_PATH_LEN 500
+#define MAX_PATH_LEN 1000
 #define SUCCESS 0
 #define ERROR 1
 #define YES 2

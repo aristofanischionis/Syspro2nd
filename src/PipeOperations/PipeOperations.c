@@ -40,28 +40,15 @@ void writeFile(char* filename, int parentfd, int size, int b){
     strcpy(file, "");
     
     fd = open(filename, O_RDONLY);
+    
     while(size > 0){
         strcpy(file, "");
-        if((r = read(fd, file, b)) < 0){
-            perror("read from file failed: ");
-            kill(parentPid,SIGUSR2);
-            exit(NO);
-        }
-        file[r] = '\0';
-        alarm(30);
-        if((write(parentfd, file, b)) < 0){
-            perror("Write to pipe failed: ");
-            kill(parentPid,SIGUSR2);
-            exit(NO);
-        }
-        alarm(0);
-        size -= b;
-        if((size <= b) && (size != 0)){
+        if(size < b){
             free(file);
             file = malloc(size+1);
             strcpy(file, "");
             
-            if((r = read(fd, file, b)) < 0){
+            if((r = read(fd, file, size)) < 0){
                 perror("read from file failed: ");
                 kill(parentPid,SIGUSR2);
                 exit(NO);
@@ -77,8 +64,22 @@ void writeFile(char* filename, int parentfd, int size, int b){
             size = 0;
             break;
         }
+        // else if we need more than one loops to read and write files
+        if((r = read(fd, file, b)) < 0){
+            perror("read from file failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        file[r] = '\0';
+        alarm(30);
+        if((write(parentfd, file, b)) < 0){
+            perror("Write to pipe failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        alarm(0);
+        size = size - b;
     }
-    
     free(file);      
     close(fd);
 }
@@ -97,23 +98,10 @@ void readFile(int parentfd, int size, char* newFile, int b){
     }
 
     while(size > 0){
-        alarm(30);
-        if ((r = read(parentfd, file, b)) < 0){
-            perror(" Error in reading pipe ");
-            kill(parentPid,SIGUSR2);
-            exit(NO);
-        }
-        file[r] = '\0';
-        alarm(0);
-        if(fprintf(newFD, "%s", file) < 0){
-            perror("write to newfile failed: ");
-            kill(parentPid,SIGUSR2);
-            exit(NO);
-        }
-        size -= b;
-        if((size <= b) && (size != 0)){
+        if(size < b){
             free(file);
             file = malloc(size+1);
+            strcpy(file, "");
             alarm(30);
             if ((r = read(parentfd, file, size)) < 0){
                 perror(" Error in reading pipe ");
@@ -127,8 +115,23 @@ void readFile(int parentfd, int size, char* newFile, int b){
                 kill(parentPid,SIGUSR2);
                 exit(NO);
             }
+            size = 0;
             break;
         }
+        alarm(30);
+        if ((r = read(parentfd, file, b)) < 0){
+            perror(" Error in reading pipe ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        file[r] = '\0';
+        alarm(0);
+        if(fprintf(newFD, "%s", file) < 0){
+            perror("write to newfile failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
+        size = size - b;
     }
 
     free(file);
