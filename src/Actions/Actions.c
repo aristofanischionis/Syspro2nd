@@ -16,12 +16,14 @@
 #include "../../HeaderFiles/FileOperations.h"
 
 pid_t parentPid;
-int signalsReceived = 0;
-int doAgain = NO;
+volatile sig_atomic_t signalsReceived = 0;
+volatile sig_atomic_t doAgain = NO;
+volatile sig_atomic_t alarmSIG = 0;
 
-void handler(){
-    signal(SIGUSR2, handler);
-    printf("PARENT: I have received a SIGUSR2, FROM MY KIDDO\n");
+void handler2(){
+    signal(SIGUSR2, handler2);
+    signalsReceived++;
+    printf("PARENT: %d I have received a SIGUSR2 for the %d time\n", (int)parentPid, signalsReceived);
     if(signalsReceived == 3){
         //maximum number achieved
         signalsReceived = 0;
@@ -29,21 +31,28 @@ void handler(){
         doAgain = ERROR;
     }
     else {
-        signalsReceived++;
         // call spawn kids
         doAgain = YES;
     }
+}
+
+void handler1(){
+    signal(SIGUSR1, handler1);
+    printf("PARENT: %d I have received a SIGUSR1\n", (int)parentPid);
+    alarmSIG = 1;
 }
 
 int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char* mirrorDir, char* logfile){
     char SendData[FIFO_LEN];
     char ReceiveData[FIFO_LEN];
     char* filename;
-    int flag ;
+    int flag;
+    int fd;
     filename = malloc(50);
     strcpy(filename, "");
-    // setting the signal receiver
-    signal(SIGUSR2, handler);
+    // setting the signal receivers
+    signal(SIGUSR2, handler2);
+    signal(SIGUSR1, handler1);
     
     // giving name to each fifo
     sprintf(SendData, "%s/%d_to_%d.fifo", commonDir, myID, newID);
@@ -62,14 +71,13 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
             // do childern stuff
             if (i == 0)
             { // WRITER
-                printf("I am WRITER of %d\n", myID);
+                // printf("I am WRITER of %d\n", myID);
                 if(nameExists(SendData) != FILE_){
-                    printf("%s desn't exist socreate \n", SendData);
+                    // printf("%s desn't exist so create \n", SendData);
                     mkfifo(SendData, 0666);
                 }
                 findFiles(inputDir, 0, SendData, b, inputDir);
                 // all files are done so write the final 00 bytes, to let reader
-                int fd;
                 fd = open(SendData, O_WRONLY);
                 writeFinal(fd);
                 close(fd);
@@ -79,9 +87,9 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
             }
             else if (i == 1)
             { // READER
-                printf("I am READER of %d\n", myID);
+                // printf("I am READER of %d\n", myID);
                 if(nameExists(ReceiveData) != FILE_){
-                    printf("%s desn't exist so create \n", ReceiveData);
+                    // printf("%s desn't exist so create \n", ReceiveData);
                     mkfifo(ReceiveData, 0666);
                 }                
                 flag = readPipe(myID, newID, ReceiveData, mirrorDir, logfile, b);
@@ -98,12 +106,16 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
     // parent
     int status = 0;
     while ((wpid = wait(&status)) > 0){
-        printf("status-------------->%d\n", status);
         if(WIFEXITED(status)){
             int exit_status = WEXITSTATUS(status);      
             printf("Exit status of %d was (%s)\n", (int)wpid,
                 (exit_status == YES) ? "successful" : "not successful"); 
         }
+    }
+    if(alarmSIG == 1){
+        // alarm from kid received so terminate both kids and send a sigusr2 sig
+        // the other kid will terminate after some time waiting in fifo
+        kill(parentPid, SIGUSR2);
     }
     if(doAgain == YES){
         // delete mirror
@@ -115,11 +127,15 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
         if (stat(mirrorDir, &st) == -1) {
             mkdir(mirrorDir, 0700);
         }
-        // retry
-        spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile);
+        // retry syncronizing again
+        syncr(myID, commonDir, b, inputDir, mirrorDir, logfile);
+        return SUCCESS;
     }
     else if (doAgain == ERROR){
         // reached 3 times
+        // delete the remaining fifos
+        unlink(SendData);
+        unlink(ReceiveData);
         return ERROR;
     }
     return SUCCESS;
@@ -128,7 +144,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
 int newID(char* commonDir , char* inputDir, int myID, int newID, int b, char* mirrorDir, char* logfile){
     int retv;
     struct stat st = {0};
-    char newFold[50];
+    char newFold[MAX_PATH_LEN];
     sprintf(newFold, "%s/%d", mirrorDir, newID);
     // make the corresponding folder in mirrorDir
     if (stat(newFold, &st) == -1) {
@@ -141,8 +157,15 @@ int newID(char* commonDir , char* inputDir, int myID, int newID, int b, char* mi
     return SUCCESS;
 }
 
-int removeID(){
-    printf("This is the removeID function\n");
+int removeID(char* inputDir, int deletedID, char* mirrorDir){
+
+    char tobeDEL[MAX_PATH_LEN];
+    sprintf(tobeDEL, "%s/%d", mirrorDir, deletedID);
+    printf("Now removing %s \n", tobeDEL);
+    // forks a kid and execs rm -rf of the given folder
+    if(deleteFolder(tobeDEL) ==ERROR){
+        return ERROR;
+    }
     return SUCCESS;
 }
 
@@ -156,7 +179,7 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
         printf("Cannot open directory commonDir in findFiles\n");
         return;
     }
-    printf("I am in syncr!!!!! \n");
+    printf("I am in syncronizing mode \n");
     while (1) {
         struct dirent *entry;
         char *d_name;

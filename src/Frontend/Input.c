@@ -4,9 +4,35 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <signal.h>
 #include "../../HeaderFiles/Input.h"
 #include "../../HeaderFiles/Inotify.h"
 #include "../../HeaderFiles/Actions.h"
+#include "../../HeaderFiles/FileOperations.h"
+
+char* commonDir;
+char* mirrorDir;
+int id;
+
+void terminating(){
+    char file[100];
+    if(commonDir && !commonDir[0]){
+        printf("commonDir is empty\n");
+        exit(ERROR);
+    }
+    if(mirrorDir && !mirrorDir[0]){
+        printf("mirrorDir is empty\n");
+        exit(ERROR);
+    }
+    printf(" Deleting: %s\n", mirrorDir);
+    deleteFolder(mirrorDir);
+
+    sprintf(file, "%s/%d.id", commonDir, id);
+    printf(" Deleting %s\n", file);
+    unlink(file);
+
+    exit(SUCCESS);
+}
 
 // parse command line args
 void paramChecker(int n, char* argv[], char* toCheck, char** result){
@@ -50,7 +76,7 @@ int writeIDfile(char* path, int id){
     char toMake[MAX_PATH_LEN];
     FILE* fp;
     sprintf(toMake, "%s/%d.id", realpath(path, buf), id);
-    printf("I am going to make file : %s \n", toMake);
+    // printf("I am going to make file : %s \n", toMake);
     // check if file already exists
     if(nameExists(toMake) == FILE_){
         printf("File with id %d already exists \n", id);
@@ -67,10 +93,10 @@ int writeIDfile(char* path, int id){
 int InputReader(int argc, char* argv[]){
     int n = argc;
     char* idchar;
-    int id;
-    char* commonDir;
+    // int id;
+    // char* commonDir;
     char* inputDir;
-    char* mirrorDir;
+    // char* mirrorDir;
     char* b;
     int bSize;
     char* logfile;
@@ -127,6 +153,10 @@ int InputReader(int argc, char* argv[]){
     if (stat(mirrorDir, &st) == -1) {
         mkdir(mirrorDir, 0700);
     }
+    // before writing his id in common dir
+    // set up handlers for sigint and sigquit
+    signal(SIGINT, terminating);
+    signal(SIGQUIT, terminating);
 
     if(writeIDfile(commonDir, id) == ERROR){
         return ERROR;

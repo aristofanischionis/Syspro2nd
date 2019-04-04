@@ -14,8 +14,10 @@
 pid_t parentPid;
 
 void handle_alarm(){
+    signal(SIGALRM, handle_alarm);
     printf("A read/write operation in fifo took longer than expected\n");
-    kill(parentPid, SIGUSR2);
+    kill(parentPid, SIGUSR1);
+    exit(NO);
 }
 
 void writeFinal(int fd){   
@@ -137,6 +139,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     // Install alarm handler
     signal(SIGALRM, handle_alarm);
     parentPid = getppid();
+    // printf("I am writePipe and my dad %d and i setted up the alarm handler\n", parentPid);
     int fd;
     char s[5];
     char len[3];
@@ -149,7 +152,9 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     strcpy(len, "");
     // open pipe
     printf("Before %s write end opens \n", SendData);
+    alarm(30);
     fd = open(SendData, O_WRONLY);
+    alarm(0);
     printf("After %s write end opens \n", SendData);
     // write len of file name
     // cut the first part of actual path that is not necessary in backup
@@ -157,7 +162,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     pathToBackup = formatBackupPath(inputDir, "", actualPath);
     l = strlen(pathToBackup);
     sprintf(len, "%hu", l);
-    printf("WP->Size of name is %s and name %s \n", len, pathToBackup);
+    printf("WRITER->Size of name is %s and name %s \n", len, pathToBackup);
     alarm(30);
     if (write(fd, len, 3) < 0){
         perror(" Error in Writing in pipe1: ");
@@ -165,7 +170,6 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
         exit(NO);
     }
     alarm(0);
-    printf("-> %s , l == %hu \n", pathToBackup, l);
     alarm(30);
     if (write(fd, pathToBackup, l + 1) < 0){
         perror(" Error in Writing in pipe2: ");
@@ -194,6 +198,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     // Install alarm handler
     signal(SIGALRM, handle_alarm);
     parentPid = getppid();
+    // printf("I am readPipe and my dad %d and i setted up the alarm handler\n", parentPid);
     int fd;
     FILE* logfp;
     long nread = 0;
@@ -207,7 +212,9 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     newFile = malloc(MAX_PATH_LEN);
     // char s[3];
     printf("Before %s read end opens \n", ReceiveData);
+    alarm(30);
     fd = open(ReceiveData, O_RDONLY);
+    alarm(0);
     printf("After %s read end opens \n", ReceiveData);
     // first read the first two digits, if they are 00, then exit successfully,
     // if they are not continue it is the len of next file
@@ -249,7 +256,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             exit(NO);
         }
         alarm(0);
-        printf("size is %s \n", s);
+        // printf("size is %s \n", s);
         size = atoi(s);
         // make new file in folder
         // in filename i have the actual path

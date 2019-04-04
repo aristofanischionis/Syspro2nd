@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "../../HeaderFiles/Inotify.h"
 #include "../../HeaderFiles/Actions.h"
-
+#include "../../HeaderFiles/Input.h"
 
 /* Read all available inotify events from the file descriptor 'fd'.
           wd is the table of watch descriptors for the directories in argv.
@@ -76,24 +76,24 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
                     // I found a filename that ends with .id
                     int thisID = 0;
                     sscanf(event->name, "%d.id", &thisID);
-                    printf("I found the newid to be %d \n", thisID);
+                    printf("I found an event for id = %d \n", thisID);
                     if (event->mask & IN_CREATE){
-                        newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile);
+                        if(newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile) == ERROR){
+                            printf("NewID function returned an error \n");
+                            exit(EXIT_FAILURE);
+                        }
                     }
                     else if (event->mask & IN_DELETE){
-                        removeID();
+                        if(removeID(inputDir, thisID, mirrorDir) == ERROR){
+                            printf("removeID function returned an error \n");
+                            exit(EXIT_FAILURE);
+                        }
                     }
                     else {
                         printf("FileName %s doesn't have an apropriate mask", event->name);
                         exit(EXIT_FAILURE);
                     }
                 }
-                // else {
-                //     printf("The file I found an event for, %s doesn't end to .id\n", event->name);
-                // }
-            }
-            else {
-                printf("A directory is created\n");
             }
         }
     }

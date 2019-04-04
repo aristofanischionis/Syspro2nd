@@ -174,6 +174,10 @@ int makeFile(char* filename){
 int deleteFolder(char* folder){
     pid_t pid, wpid;
     int status = 0;
+    if(folder && !folder[0]){
+        printf("folder is empty in deleteFolder \n");
+        return ERROR;
+    }
     pid = fork();
     if (pid == 0) {
         execl("/bin/rm", "rm", "-rf", folder, NULL);
