@@ -41,7 +41,7 @@ void terminating(){
     // write in log file that i am here
     logfp = fopen(logfile, "a");
     // write data in log
-    sprintf(logdata, "id: %d is now leaving the party", id);
+    sprintf(logdata, "Leaving id is: %d", id);
     fprintf(logfp, "%s\n", logdata);
     fclose(logfp);
     exit(SUCCESS);
