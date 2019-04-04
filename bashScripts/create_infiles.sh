@@ -11,7 +11,7 @@ function random_data()
 {
     VAR=$(shuf -i 1000-128000 -n 1)
     # echo 'my var is '${VAR}
-    cat /dev/urandom | tr -dc "a-zA-Z0-9!@#$%^&*()_+?><~\`;'" | head -c ${VAR} > $1
+    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c ${VAR} > $1
 }
 
 # checks if to delete or not the given folder

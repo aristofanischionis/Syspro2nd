@@ -38,7 +38,7 @@ char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
     return backupPath;
 }
 
-void findFiles(char *source, int indent, char* SendData, int b, char* inputDir) {
+void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, char* logfile){
     parentPid = getppid();
     char* pathToBackup;
     pathToBackup = malloc(MAX_PATH_LEN);
@@ -51,7 +51,7 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir) 
     if ((dir = opendir(source)) == NULL) perror("opendir() error");
     else {
         while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.') {
+            if (entry->d_name[0] != '.'){
                 strcpy(path, source);
                 strcat(path, "/");
                 strcat(path, entry->d_name);
@@ -61,10 +61,10 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir) 
                 else if (S_ISDIR(info.st_mode)){
                     // pathToBackup = formatBackupPath(inputDir, "", path);
                     // makeFolder(pathToBackup);
-                    findFiles(path, indent+1, SendData, b, inputDir);
+                    findFiles(path, indent+1, SendData, b, inputDir, logfile);
                 }
                 else {
-                    writePipe(SendData, b, path, inputDir);
+                    writePipe(SendData, b, path, inputDir, logfile);
                 }
             }
         }
@@ -93,10 +93,6 @@ void makeFolder(char* foldername){
         return;
     }
     // printf("Folder to be made %s\n", foldername);
-    // struct stat st = {0};
-    // if (stat(foldername, &st) == -1) {
-    //     mkdir(foldername, 0700);
-    // }
     // make any subdirectories first using mkdir -p
     pid_t pid, wpid;
     int status = 0;
@@ -144,16 +140,7 @@ int makeFile(char* filename){
     // make any subdirectories first using mkdir -p
     pid_t pid, wpid;
     int status = 0;
-    // pid = fork();
-    // if (pid == 0) {
-    //     execl("/bin/mkdir", "mkdir", "-p", path, NULL);
-    // } else if (pid < 0) {
-    //     perror("pid<0 in mkdir\n");
-    //     kill(parentPid, SIGUSR2);
-    //     exit(NO);
-    // }
-
-    // while ((wpid = wait(&status)) > 0);
+    
     makeFolder(path); 
     
     // then use touch

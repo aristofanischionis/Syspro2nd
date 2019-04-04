@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include "../../HeaderFiles/Input.h"
+#include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/FileOperations.h"
 
@@ -32,11 +33,12 @@ void writeFinal(int fd){
     alarm(0);
 }
 
-void writeFile(char* filename, int parentfd, int size, int b){
+int writeFile(char* filename, int parentfd, int size, int b){
     int fd;
     char *file;
+    int bytes = 0;
+    ssize_t r = 0;
     file = malloc(b+1);
-    ssize_t r;
     strcpy(file, "");
     
     fd = open(filename, O_RDONLY);
@@ -55,12 +57,14 @@ void writeFile(char* filename, int parentfd, int size, int b){
             }
             file[r] = '\0';
             alarm(30);
-            if((write(parentfd, file, size)) < 0){
+            if((r = write(parentfd, file, size)) < 0){
                 perror("Write to pipe failed: ");
                 kill(parentPid,SIGUSR2);
                 exit(NO);
             }
             alarm(0);
+            //
+            bytes += (int)r;
             size = 0;
             break;
         }
@@ -72,22 +76,26 @@ void writeFile(char* filename, int parentfd, int size, int b){
         }
         file[r] = '\0';
         alarm(30);
-        if((write(parentfd, file, b)) < 0){
+        if((r = write(parentfd, file, b)) < 0){
             perror("Write to pipe failed: ");
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
         alarm(0);
+        //
+        bytes += (int)r;
         size = size - b;
     }
     free(file);      
     close(fd);
+    return bytes;
 }
 
-void readFile(int parentfd, int size, char* newFile, int b){
+int readFile(int parentfd, int size, char* newFile, int b){
     FILE* newFD = fopen(newFile, "w");
     char *file;
-    ssize_t r;
+    int bytes = 0;
+    ssize_t r = 0;
     file = malloc(b+1);
     strcpy(file, "");
 
@@ -109,6 +117,8 @@ void readFile(int parentfd, int size, char* newFile, int b){
                 exit(NO);
             }
             file[r] = '\0';
+            //
+            bytes += (int)r;
             alarm(0);
             if(fprintf(newFD, "%s", file) < 0){
                 perror("write to newfile failed: ");
@@ -125,6 +135,8 @@ void readFile(int parentfd, int size, char* newFile, int b){
             exit(NO);
         }
         file[r] = '\0';
+        //
+        bytes += (int)r;
         alarm(0);
         if(fprintf(newFD, "%s", file) < 0){
             perror("write to newfile failed: ");
@@ -136,14 +148,17 @@ void readFile(int parentfd, int size, char* newFile, int b){
 
     free(file);
     fclose(newFD);
+    return bytes;
 }
 
-void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
+void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* logfile){
     // Install alarm handler
     signal(SIGALRM, handle_alarm);
     parentPid = getppid();
     // printf("I am writePipe and my dad %d and i setted up the alarm handler\n", parentPid);
     int fd;
+    FILE* logfp;
+    int bytesWritten = 0;
     char s[5];
     char len[3];
     unsigned short l = 0;
@@ -154,11 +169,11 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
     strcpy(s, "");
     strcpy(len, "");
     // open pipe
-    printf("Before %s write end opens \n", SendData);
+    // printf("Before %s write end opens \n", SendData);
     alarm(30);
     fd = open(SendData, O_WRONLY);
     alarm(0);
-    printf("After %s write end opens \n", SendData);
+    // printf("After %s write end opens \n", SendData);
     // write len of file name
     // cut the first part of actual path that is not necessary in backup
     // name of interest to concat for the other process
@@ -190,9 +205,16 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir){
         exit(NO);
     }
     alarm(0);
-    writeFile(actualPath, fd, size, b);
+    bytesWritten = writeFile(actualPath, fd, size, b);
     // wrote all of the file in fd
     // actual file in chunks size of b
+    logfp = fopen(logfile, "a");
+    // write data in log
+    char logdata[200];
+    sprintf(logdata, "File Written: %s, Bytes: %d ", actualPath, bytesWritten);
+    // printf(" ----------> to be written in log %s \n", logdata);
+    fprintf(logfp, "%s\n", logdata);
+    fclose(logfp);
     free(pathToBackup);
     close(fd);
 }
@@ -207,6 +229,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     long nread = 0;
     unsigned int size = 0;
     unsigned short len = 0;
+    int bytesRead = 0;
     char s[5];
     char l[3];
     char* filename;
@@ -214,11 +237,11 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     filename = malloc(MAX_PATH_LEN);
     newFile = malloc(MAX_PATH_LEN);
     // char s[3];
-    printf("Before %s read end opens \n", ReceiveData);
+    // printf("Before %s read end opens \n", ReceiveData);
     alarm(30);
     fd = open(ReceiveData, O_RDONLY);
     alarm(0);
-    printf("After %s read end opens \n", ReceiveData);
+    // printf("After %s read end opens \n", ReceiveData);
     // first read the first two digits, if they are 00, then exit successfully,
     // if they are not continue it is the len of next file
     while(1){
@@ -264,16 +287,16 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         // make new file in folder
         // in filename i have the actual path
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
-        printf("file to be made is %s \n", newFile);
+        // printf("file to be made is %s \n", newFile);
         makeFile(newFile);
+        printf("READER->name is %s and size %d \n", newFile, size);
 
-        readFile(fd, size, newFile, b);
-        
+        bytesRead = readFile(fd, size, newFile, b);
         logfp = fopen(logfile, "a");
         // write data in log
-        char logdata[100];
-        sprintf(logdata, "Name: %s, Size: %hu ", filename, size);
-        printf(" ----------> to be written in log %s \n", logdata);
+        char logdata[200];
+        sprintf(logdata, "File Read: %s, Bytes: %d ", newFile, bytesRead);
+        // printf(" ----------> to be written in log %s \n", logdata);
         fprintf(logfp, "%s\n", logdata);
         fclose(logfp);
     }

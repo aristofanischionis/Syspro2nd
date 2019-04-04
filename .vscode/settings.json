@@ -5,6 +5,7 @@
         "fcntl.h": "c",
         "actions.h": "c",
         "limits.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "fileoperations.h": "c"
     }
 }

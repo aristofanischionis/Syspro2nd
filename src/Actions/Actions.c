@@ -76,7 +76,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
                     // printf("%s desn't exist so create \n", SendData);
                     mkfifo(SendData, 0666);
                 }
-                findFiles(inputDir, 0, SendData, b, inputDir);
+                findFiles(inputDir, 0, SendData, b, inputDir, logfile);
                 // all files are done so write the final 00 bytes, to let reader
                 fd = open(SendData, O_WRONLY);
                 writeFinal(fd);
@@ -198,7 +198,6 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
         char *dot = strrchr(d_name, '.');
         if (dot && !strcmp(dot, ".id")){
             // I found a filename that ends with .id
-            
             int thisID = 0;
             sscanf(d_name, "%d.id", &thisID);
             if(thisID == myID) continue;

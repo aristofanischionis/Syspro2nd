@@ -9,13 +9,21 @@
 #include "../../HeaderFiles/Inotify.h"
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/FileOperations.h"
+#include "../../HeaderFiles/PipeOperations.h"
 
 char* commonDir;
 char* mirrorDir;
+char* logfile;
 int id;
 
 void terminating(){
     char file[100];
+    char* logdata;
+    FILE* logfp;
+
+    logdata = malloc(100);
+    strcpy(logdata, "");
+
     if(commonDir && !commonDir[0]){
         printf("commonDir is empty\n");
         exit(ERROR);
@@ -30,7 +38,12 @@ void terminating(){
     sprintf(file, "%s/%d.id", commonDir, id);
     printf(" Deleting %s\n", file);
     unlink(file);
-
+    // write in log file that i am here
+    logfp = fopen(logfile, "a");
+    // write data in log
+    sprintf(logdata, "id: %d is now leaving the party", id);
+    fprintf(logfp, "%s\n", logdata);
+    fclose(logfp);
     exit(SUCCESS);
 }
 
@@ -94,12 +107,12 @@ int InputReader(int argc, char* argv[]){
     int n = argc;
     char* idchar;
     // int id;
-    // char* commonDir;
+    FILE* logfp;
     char* inputDir;
     // char* mirrorDir;
     char* b;
     int bSize;
-    char* logfile;
+    // char* logfile;
     struct stat st = {0};
     // init all the variables to be read as cmd line arguments
     idchar = (char*) malloc(10);
@@ -161,6 +174,13 @@ int InputReader(int argc, char* argv[]){
     if(writeIDfile(commonDir, id) == ERROR){
         return ERROR;
     }
+    // write in log file that i am here
+    logfp = fopen(logfile, "a");
+    // write data in log
+    char logdata[20];
+    sprintf(logdata, "id: %d", id);
+    fprintf(logfp, "%s\n", logdata);
+    fclose(logfp);
     // first sync with all other processes
     syncr(id, commonDir, bSize, inputDir, mirrorDir, logfile);
     // begin monitoring commonDir
