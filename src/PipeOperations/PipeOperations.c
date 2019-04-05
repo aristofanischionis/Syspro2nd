@@ -158,7 +158,9 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     // printf("I am writePipe and my dad %d and i setted up the alarm handler\n", parentPid);
     int fd;
     FILE* logfp;
+    ssize_t nwrite = 0;
     int bytesWritten = 0;
+    int metaWritten = 0;
     char s[5];
     char len[3];
     unsigned short l = 0;
@@ -182,37 +184,40 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     sprintf(len, "%hu", l);
     printf("WRITER->Size of name is %s and name %s \n", len, pathToBackup);
     alarm(30);
-    if (write(fd, len, 3) < 0){
+    if ((nwrite = write(fd, len, 3)) < 0){
         perror(" Error in Writing in pipe1: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
     alarm(0);
+    metaWritten += (int)nwrite;
     alarm(30);
-    if (write(fd, pathToBackup, l + 1) < 0){
+    if ((nwrite= write(fd, pathToBackup, l + 1)) < 0){
         perror(" Error in Writing in pipe2: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
     alarm(0);
+    metaWritten += (int)nwrite;
     // len of file
     size = (unsigned int)calculateFileSize(actualPath);
     sprintf(s, "%u", size);
     alarm(30);
-    if (write(fd, s, 5) < 0){
+    if ((nwrite = write(fd, s, 5)) < 0){
         perror(" Error in Writing in pipe3: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
     alarm(0);
+    metaWritten += (int)nwrite;
+    //
     bytesWritten = writeFile(actualPath, fd, size, b);
     // wrote all of the file in fd
     // actual file in chunks size of b
     logfp = fopen(logfile, "a");
     // write data in log
     char logdata[200];
-    sprintf(logdata, "File Written: %s, Bytes: %d ", actualPath, bytesWritten);
-    // printf(" ----------> to be written in log %s \n", logdata);
+    sprintf(logdata, "File Written: %s, Bytes: %d Meta Written: %d", actualPath, bytesWritten, metaWritten);
     fprintf(logfp, "%s\n", logdata);
     fclose(logfp);
     free(pathToBackup);
@@ -226,10 +231,11 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     // printf("I am readPipe and my dad %d and i setted up the alarm handler\n", parentPid);
     int fd;
     FILE* logfp;
-    long nread = 0;
+    ssize_t nread = 0;
     unsigned int size = 0;
     unsigned short len = 0;
     int bytesRead = 0;
+    int metaRead = 0;
     char s[5];
     char l[3];
     char* filename;
@@ -266,6 +272,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             close(fd);
             return YES;
         }
+        metaRead += (int)nread;
         alarm(30);
         if((nread = read(fd, filename, len + 1)) < 0){
             printf("I read %ld chars\n", nread);
@@ -274,6 +281,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             exit(NO);
         }
         alarm(0);
+        metaRead += (int)nread;
         alarm(30);
         if((nread = read(fd, s, 5)) < 0){
             printf("I read %ld chars\n", nread);
@@ -282,7 +290,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             exit(NO);
         }
         alarm(0);
-        // printf("size is %s \n", s);
+        metaRead += (int)nread;
         size = atoi(s);
         // make new file in folder
         // in filename i have the actual path
@@ -295,10 +303,10 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         logfp = fopen(logfile, "a");
         // write data in log
         char logdata[200];
-        sprintf(logdata, "File Read: %s, Bytes: %d ", newFile, bytesRead);
-        // printf(" ----------> to be written in log %s \n", logdata);
+        sprintf(logdata, "File Read: %s, Bytes: %d Meta Read: %d", newFile, bytesRead, metaRead);
         fprintf(logfp, "%s\n", logdata);
         fclose(logfp);
+        metaRead = 0;
     }
     return NO;
 }

@@ -9,6 +9,8 @@ let bytesSent=0
 let bytesReceived=0
 let clientsLeft=0
 let clientsArrived=0
+let metaWrite=0
+let metaRead=0
 # array of clients to be created
 declare -a clientArray
 
@@ -24,11 +26,13 @@ while read -a sentence; do
     if [[ ${sentence[0]} == "File" ]] && [[ ${sentence[1]} == "Written:" ]]; then
         filesWritten=$((filesWritten + 1))
         bytesSent=$((bytesSent + ${sentence[4]}))
+        metaWrite=$((metaWrite + ${sentence[7]}))
     fi
 
     if [[ ${sentence[0]} == "File" ]] && [[ ${sentence[1]} == "Read:" ]]; then
         filesRead=$((filesRead + 1))
         bytesReceived=$((bytesReceived + ${sentence[4]}))
+        metaRead=$((metaRead + ${sentence[7]}))
     fi
 
     if [[ ${sentence[0]} == "Leaving" ]]; then
@@ -53,17 +57,24 @@ done
 echo '=============RESULTS============='
 # printing the results
 echo 'clients Arrived: '${clientsArrived}
-
+echo '                                 '
+echo 'Clients list:'
 for ((i = 0 ; i < clientsArrived ; i++)); do
     echo 'client id: '${clientArray[$i]}
 done
 
+echo '                                 '
 echo 'min ID is: '${minID}
 echo 'max ID is: '${maxID}
+echo '                                 '
 echo 'bytes Sent in total: '${bytesSent}
+echo 'MetaData Sent in total: '${metaWrite}
+echo '                                 '
 echo 'bytes Received in total: '${bytesReceived}
+echo 'MetaData Received in total: '${metaRead}
+echo '                                 '
 echo 'files Sent in total: '${filesWritten}
 echo 'files Received in total: '${filesRead}
+echo '                                 '
 echo 'clients Left: '${clientsLeft}
-
 echo '=============END================='
