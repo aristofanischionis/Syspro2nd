@@ -33,7 +33,6 @@ PipeOperations.o: src/PipeOperations/PipeOperations.c
 # clean house
 clean:
 	rm -f $(OBJS) $(OUT)
-	rm -rf *_mirror && rm -rf common/ && rm log_*
 
 # do a bit of accounting
 count:

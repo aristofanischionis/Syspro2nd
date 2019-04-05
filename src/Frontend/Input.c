@@ -161,10 +161,12 @@ int InputReader(int argc, char* argv[]){
     }
 
     if (stat(commonDir, &st) == -1) {
-        mkdir(commonDir, 0700);
+        // mkdir(commonDir, 0700);
+        makeFolder(commonDir);
     }
     if (stat(mirrorDir, &st) == -1) {
-        mkdir(mirrorDir, 0700);
+        // mkdir(mirrorDir, 0700);
+        makeFolder(mirrorDir);
     }
     // before writing his id in common dir
     // set up handlers for sigint and sigquit
