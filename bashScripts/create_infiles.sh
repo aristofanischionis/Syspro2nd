@@ -10,7 +10,7 @@ function random_string()
 function random_data()
 {
     VAR=$(shuf -i 1000-128000 -n 1)
-    # echo 'my var is '${VAR}
+    echo '('${VAR}')'
     cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c ${VAR} > $1
 }
 
@@ -105,7 +105,7 @@ function main () {
                 break
             fi
             tmp_file=${rr_dir_arr[$i]}'/'${fil_array[$fil_counter]}
-            echo 'file to be made '${tmp_file}
+            echo -n ${tmp_file}' '
             touch $tmp_file
             random_data $tmp_file
             fil_counter=$((fil_counter + 1))
