@@ -72,7 +72,7 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, 
     }
 }
 
-long calculateFileSize(char* filename){
+long int calculateFileSize(char* filename){
     FILE* fp;    
     fp = fopen(filename, "r");
     if(fp == NULL){
@@ -81,7 +81,7 @@ long calculateFileSize(char* filename){
         exit(NO);
     }
     fseek(fp, 0L, SEEK_END);
-    long size = ftell(fp);
+    long int size = ftell(fp);
     rewind(fp);
     fclose(fp);
     return size;

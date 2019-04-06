@@ -161,14 +161,14 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     ssize_t nwrite = 0;
     int bytesWritten = 0;
     int metaWritten = 0;
-    char s[5];
+    // char s[5];
     char len[3];
     unsigned short l = 0;
     unsigned int size = 0;
     char* pathToBackup;
     pathToBackup = malloc(MAX_PATH_LEN);
     strcpy(pathToBackup, "");
-    strcpy(s, "");
+    // strcpy(s, "");
     strcpy(len, "");
     // open pipe
     // printf("Before %s write end opens \n", SendData);
@@ -200,10 +200,11 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     alarm(0);
     metaWritten += (int)nwrite;
     // len of file
-    size = (unsigned int)calculateFileSize(actualPath);
-    sprintf(s, "%u", size);
+    size = calculateFileSize(actualPath);
+    // sprintf(s, "%d", size);
+    // printf("---------> size %s \n", s);
     alarm(30);
-    if ((nwrite = write(fd, s, 5)) < 0){
+    if ((nwrite = write(fd, &size, 4)) < 0){
         perror(" Error in Writing in pipe3: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
@@ -236,7 +237,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     unsigned short len = 0;
     int bytesRead = 0;
     int metaRead = 0;
-    char s[5];
+    // char s[5];
     char l[3];
     char* filename;
     char* newFile;
@@ -251,7 +252,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     // first read the first two digits, if they are 00, then exit successfully,
     // if they are not continue it is the len of next file
     while(1){
-        strcpy(s, "");
+        // strcpy(s, "");
         strcpy(l, "");
         strcpy(filename, "");
         strcpy(newFile, "");
@@ -283,7 +284,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         alarm(0);
         metaRead += (int)nread;
         alarm(30);
-        if((nread = read(fd, s, 5)) < 0){
+        if((nread = read(fd, &size, 4)) < 0){
             printf("I read %ld chars\n", nread);
             perror(" Error in reading pipe3: ");
             kill(parentPid,SIGUSR2);
@@ -291,7 +292,6 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         }
         alarm(0);
         metaRead += (int)nread;
-        size = atoi(s);
         // make new file in folder
         // in filename i have the actual path
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
