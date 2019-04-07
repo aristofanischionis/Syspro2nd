@@ -16,3 +16,6 @@ cat log_file1 log_file2 | ./bashScripts/get_stats.sh
 
 to check if two folders are identical:
 diff -r -q path1/ path2/
+
+to kill bg processes:
+kill $(ps -A -ostat,ppid | awk '/[zZ]/ && !a[$2]++ {print $2}')

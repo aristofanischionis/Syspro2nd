@@ -61,6 +61,7 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, 
                 else if (S_ISDIR(info.st_mode)){
                     // pathToBackup = formatBackupPath(inputDir, "", path);
                     // makeFolder(pathToBackup);
+                    writePipe(SendData, b, path, inputDir, logfile);
                     findFiles(path, indent+1, SendData, b, inputDir, logfile);
                 }
                 else {
