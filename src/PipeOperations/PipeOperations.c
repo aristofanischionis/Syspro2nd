@@ -22,10 +22,11 @@ void handle_alarm(){
 }
 
 void writeFinal(int fd){   
-    char final[3];
-    strcpy(final, "00");
+    // char final[3];
+    // strcpy(final, "00");
+    short int final = 0;
     alarm(30);
-    if (write(fd, final, 3) < 0){
+    if (write(fd, &final, 2) < 0){
         perror(" Error in Writing Final\n");
         kill(parentPid, SIGUSR2);
         exit(NO);
@@ -162,14 +163,14 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     int bytesWritten = 0;
     int metaWritten = 0;
     // char s[5];
-    char len[3];
-    unsigned short l = 0;
+    // char len[3];
+    short int l = 0;
     unsigned int size = 0;
     char* pathToBackup;
     pathToBackup = malloc(MAX_PATH_LEN);
     strcpy(pathToBackup, "");
     // strcpy(s, "");
-    strcpy(len, "");
+    // strcpy(len, "");
     // open pipe
     // printf("Before %s write end opens \n", SendData);
     // alarm(30);
@@ -181,10 +182,15 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     // name of interest to concat for the other process
     pathToBackup = formatBackupPath(inputDir, "", actualPath);
     l = strlen(pathToBackup);
-    sprintf(len, "%hu", l);
+    // sprintf(len, "%hu", l);
     // printf("WRITER->Size of name is %s and name %s \n", len, pathToBackup);
     alarm(30);
-    if ((nwrite = write(fd, len, 3)) < 0){
+    // if ((nwrite = write(fd, len, 3)) < 0){
+    //     perror(" Error in Writing in pipe1: ");
+    //     kill(parentPid,SIGUSR2);
+    //     exit(NO);
+    // }
+    if ((nwrite = write(fd, &l, 2)) < 0){
         perror(" Error in Writing in pipe1: ");
         kill(parentPid,SIGUSR2);
         exit(NO);
@@ -235,11 +241,11 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     FILE* logfp;
     ssize_t nread = 0;
     unsigned int size = 0;
-    unsigned short len = 0;
+    short int len = 0;
     int bytesRead = 0;
     int metaRead = 0;
     // char s[5];
-    char l[3];
+    // char l[3];
     char* filename;
     char* newFile;
     filename = malloc(MAX_PATH_LEN);
@@ -254,18 +260,23 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     // if they are not continue it is the len of next file
     while(1){
         // strcpy(s, "");
-        strcpy(l, "");
+        // strcpy(l, "");
         strcpy(filename, "");
         strcpy(newFile, "");
         alarm(30);
-        if((nread = read(fd, l, 3)) < 0){
+        // if((nread = read(fd, l, 3)) < 0){
+        //     perror(" Error in reading pipe1: ");
+        //     kill(parentPid,SIGUSR2);
+        //     exit(NO);
+        // }
+        if((nread = read(fd, &len, 2)) < 0){
             perror(" Error in reading pipe1: ");
             kill(parentPid,SIGUSR2);
             exit(NO);
         }
         alarm(0);
 
-        len = atoi(l);
+        // len = atoi(l);
         if(len == 0){
             printf("I read the 00 bytes from pipe so I m done\n");
             // successful

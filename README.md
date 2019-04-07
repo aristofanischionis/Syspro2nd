@@ -13,3 +13,6 @@ then run multiple clients:
 
 to test the results run:
 cat log_file1 log_file2 | ./bashScripts/get_stats.sh
+
+to check if two folders are identical:
+diff -r -q path1/ path2/
