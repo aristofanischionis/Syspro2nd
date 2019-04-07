@@ -101,6 +101,8 @@ int readFile(int parentfd, int size, char* newFile, int b){
     strcpy(file, "");
 
     if (newFD == NULL) {
+        printf("Hello World\n");
+        return 0;
         perror("Failed to open file: ");
         kill(parentPid,SIGUSR2);
         exit(NO);

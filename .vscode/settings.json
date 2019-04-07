@@ -7,5 +7,6 @@
         "limits.h": "c",
         "types.h": "c",
         "fileoperations.h": "c"
-    }
+    },
+    "git.ignoreLimitWarning": true
 }
