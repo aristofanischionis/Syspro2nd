@@ -43,6 +43,7 @@ void terminating(){
     // write data in log
     sprintf(logdata, "Leaving id is: %d", id);
     fprintf(logfp, "%s\n", logdata);
+    fflush(logfp);
     fclose(logfp);
     exit(SUCCESS);
 }
@@ -182,6 +183,7 @@ int InputReader(int argc, char* argv[]){
     char logdata[20];
     sprintf(logdata, "id: %d", id);
     fprintf(logfp, "%s\n", logdata);
+    fflush(logfp);
     fclose(logfp);
     // first sync with all other processes
     syncr(id, commonDir, bSize, inputDir, mirrorDir, logfile);

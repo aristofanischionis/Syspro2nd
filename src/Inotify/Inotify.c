@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/inotify.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include "../../HeaderFiles/Inotify.h"
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
@@ -78,9 +79,14 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
                     sscanf(event->name, "%d.id", &thisID);
                     printf("I found an event for id = %d \n", thisID);
                     if (event->mask & IN_CREATE){
-                        if(newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile) == ERROR){
-                            printf("NewID function returned an error \n");
-                            exit(EXIT_FAILURE);
+                        pid_t pid;
+                        pid = fork();
+                        if (pid == 0) {
+                            if(newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile) == ERROR){
+                                printf("NewID function returned an error \n");
+                                exit(EXIT_FAILURE);
+                            }
+                            exit(YES);
                         }
                     }
                     else if (event->mask & IN_DELETE){

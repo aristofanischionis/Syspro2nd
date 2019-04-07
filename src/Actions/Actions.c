@@ -48,6 +48,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
     char* filename;
     int flag;
     int fd;
+    // pid_t writerPid, readerPid;
     filename = malloc(50);
     strcpy(filename, "");
     // setting the signal receivers
@@ -71,6 +72,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
             // do childern stuff
             if (i == 0)
             { // WRITER
+                // writerPid = getpid();
                 // printf("I am WRITER of %d\n", myID);
                 if(nameExists(SendData) != FILE_){
                     // printf("%s desn't exist so create \n", SendData);
@@ -87,6 +89,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
             }
             else if (i == 1)
             { // READER
+                // readerPid = getpid();
                 // printf("I am READER of %d\n", myID);
                 if(nameExists(ReceiveData) != FILE_){
                     // printf("%s desn't exist so create \n", ReceiveData);
@@ -113,11 +116,14 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
         }
     }
     if(alarmSIG == 1){
+        alarmSIG = 0;
         // alarm from kid received so terminate both kids and send a sigusr2 sig
         // the other kid will terminate after some time waiting in fifo
         kill(parentPid, SIGUSR2);
     }
     if(doAgain == YES){
+        // kill the other
+        
         // delete mirror
         if(deleteFolder(mirrorDir) == ERROR){
             perror("Folder cannot be deleted : \n");
@@ -204,7 +210,12 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
             // if it is a file do stuff
             printf("client with id %d found!\n", thisID);
             // call newID
-            newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile);
+            pid_t pid;
+            pid = fork();
+            if (pid == 0) {
+                newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile);
+                exit(YES);
+            }
         }
     }
     /* After going through all the entries, close the directory. */

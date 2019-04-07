@@ -17,7 +17,7 @@ pid_t parentPid;
 void handle_alarm(){
     signal(SIGALRM, handle_alarm);
     printf("A read/write operation in fifo took longer than expected\n");
-    kill(parentPid, SIGUSR1);
+    kill(parentPid, SIGUSR2);
     exit(NO);
 }
 
@@ -172,9 +172,9 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     strcpy(len, "");
     // open pipe
     // printf("Before %s write end opens \n", SendData);
-    alarm(30);
+    // alarm(30);
     fd = open(SendData, O_WRONLY);
-    alarm(0);
+    // alarm(0);
     // printf("After %s write end opens \n", SendData);
     // write len of file name
     // cut the first part of actual path that is not necessary in backup
@@ -182,7 +182,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     pathToBackup = formatBackupPath(inputDir, "", actualPath);
     l = strlen(pathToBackup);
     sprintf(len, "%hu", l);
-    printf("WRITER->Size of name is %s and name %s \n", len, pathToBackup);
+    // printf("WRITER->Size of name is %s and name %s \n", len, pathToBackup);
     alarm(30);
     if ((nwrite = write(fd, len, 3)) < 0){
         perror(" Error in Writing in pipe1: ");
@@ -220,6 +220,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     char logdata[200];
     sprintf(logdata, "File Written: %s, Bytes: %d Meta Written: %d", actualPath, bytesWritten, metaWritten);
     fprintf(logfp, "%s\n", logdata);
+    fflush(logfp);
     fclose(logfp);
     free(pathToBackup);
     close(fd);
@@ -245,9 +246,9 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     newFile = malloc(MAX_PATH_LEN);
     // char s[3];
     // printf("Before %s read end opens \n", ReceiveData);
-    alarm(30);
+    // alarm(30);
     fd = open(ReceiveData, O_RDONLY);
-    alarm(0);
+    // alarm(0);
     // printf("After %s read end opens \n", ReceiveData);
     // first read the first two digits, if they are 00, then exit successfully,
     // if they are not continue it is the len of next file
@@ -297,7 +298,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
         // printf("file to be made is %s \n", newFile);
         makeFile(newFile);
-        printf("READER->name is %s and size %d \n", newFile, size);
+        // printf("READER->name is %s and size %d \n", newFile, size);
 
         bytesRead = readFile(fd, size, newFile, b);
         logfp = fopen(logfile, "a");
@@ -305,6 +306,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         char logdata[200];
         sprintf(logdata, "File Read: %s, Bytes: %d Meta Read: %d", newFile, bytesRead, metaRead);
         fprintf(logfp, "%s\n", logdata);
+        fflush(logfp);
         fclose(logfp);
         metaRead = 0;
     }
