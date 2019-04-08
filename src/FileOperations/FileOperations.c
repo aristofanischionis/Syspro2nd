@@ -40,9 +40,6 @@ char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
 
 void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, char* logfile){
     parentPid = getppid();
-    char* pathToBackup;
-    pathToBackup = malloc(MAX_PATH_LEN);
-    strcpy(pathToBackup, "");
     DIR *dir;
     struct dirent *entry;
     char path[MAX_PATH_LEN];
@@ -59,8 +56,6 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, 
                     fprintf(stderr, "stat() error on %s: %s\n", path, strerror(errno));
                 }
                 else if (S_ISDIR(info.st_mode)){
-                    // pathToBackup = formatBackupPath(inputDir, "", path);
-                    // makeFolder(pathToBackup);
                     writePipe(SendData, b, path, inputDir, logfile);
                     findFiles(path, indent+1, SendData, b, inputDir, logfile);
                 }

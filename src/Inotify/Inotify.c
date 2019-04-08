@@ -51,25 +51,25 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
              ptr += sizeof(struct inotify_event) + event->len)
         {
             event = (const struct inotify_event *)ptr;
-            if (event->mask & IN_CREATE)
-                printf("IN_CREATE: ");
-            if (event->mask & IN_DELETE)
-                printf("IN_DELETE: ");
+            // if (event->mask & IN_CREATE)
+            //     printf("IN_CREATE: ");
+            // if (event->mask & IN_DELETE)
+            //     printf("IN_DELETE: ");
 
             /* Print the name of the watched directory */
-            printf("%s/", commonDir);
+            // printf("%s/", commonDir);
 
             /* Print the name of the file */
 
-            if (event->len)
-                printf("%s", event->name);
+            // if (event->len)
+            //     printf("%s", event->name);
 
             /* Print type of filesystem object */
 
-            if (event->mask & IN_ISDIR)
-                printf(" [directory]\n");
-            else
-                printf(" [file]\n");
+            // if (event->mask & IN_ISDIR)
+            //     printf(" [directory]\n");
+            // else
+            //     printf(" [file]\n");
 
             if(event->len){
                 char *dot = strrchr(event->name, '.');

@@ -101,9 +101,7 @@ int readFile(int parentfd, int size, char* newFile, int b){
     strcpy(file, "");
 
     if (newFD == NULL) {
-        printf("Hello World\n");
-        return 0;
-        perror("Failed to open file: ");
+        perror("Failed to open file:(readFile) ");
         kill(parentPid,SIGUSR2);
         exit(NO);
     }
@@ -357,6 +355,9 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         metaRead += (int)nread;
         // make new file in folder
         // in filename i have the actual path
+        if(!strcmp(filename, "")){
+            continue;
+        }
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
         // printf("file to be made is %s \n", newFile);
         makeFile(newFile);

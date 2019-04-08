@@ -11,6 +11,11 @@ then run multiple clients:
 ./mirror_client -n 1 -c ./common -i ./1_input -m ./1_mirror -b 100 -l log_file1
 ./mirror_client -n 2 -c ./common -i ./2_input -m ./2_mirror -b 200 -l log_file2
 
+./mirror_client -n 4 -c ./common -i ./hello4 -m ./4_mirror -b 100 -l log_file4
+./mirror_client -n 3 -c ./common -i ./hello3 -m ./3_mirror -b 100 -l log_file3
+./mirror_client -n 2 -c ./common -i ./hello2 -m ./2_mirror -b 100 -l log_file2
+./mirror_client -n 1 -c ./common -i ./hello1 -m ./1_mirror -b 100 -l log_file1
+
 to test the results run:
 cat log_file1 log_file2 | ./bashScripts/get_stats.sh
 
