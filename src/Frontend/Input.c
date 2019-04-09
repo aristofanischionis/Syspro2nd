@@ -10,6 +10,7 @@
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/PipeOperations.h"
+#include "../../HeaderFiles/Encryption.h"
 
 char* commonDir;
 char* mirrorDir;
@@ -177,6 +178,8 @@ int InputReader(int argc, char* argv[]){
     if(writeIDfile(commonDir, id) == ERROR){
         return ERROR;
     }
+    // make my encryption keys
+    generateKeys(id);
     // write in log file that i am here
     logfp = fopen(logfile, "a");
     // write data in log
