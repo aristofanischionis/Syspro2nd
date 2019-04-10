@@ -14,6 +14,7 @@
 #include "../../HeaderFiles/Input.h"
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/FileOperations.h"
+#include "../../HeaderFiles/Encryption.h"
 
 pid_t parentPid;
 volatile sig_atomic_t signalsReceived = 0;
@@ -42,14 +43,16 @@ void handler1(){
     alarmSIG = 1;
 }
 
-int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char* mirrorDir, char* logfile){
+int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char* mirrorDir, char* logfile, char* passPhrase){
     char SendData[FIFO_LEN];
     char ReceiveData[FIFO_LEN];
+    char* recepientEmail;
     char* filename;
     int flag;
     int fd;
-    // pid_t writerPid, readerPid;
+    recepientEmail = malloc(30);
     filename = malloc(50);
+    strcpy(recepientEmail, "");
     strcpy(filename, "");
     // setting the signal receivers
     signal(SIGUSR2, handler2);
@@ -64,21 +67,21 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
     parentPid = getpid();
     // forking the kids
     pid_t pid, wpid;
-    for (int i = 0; i < 2; i++)
-    {
+    for (int i = 0; i < 2; i++){
         pid = fork();
-        if (pid == 0)
-        {
+        if (pid == 0){
             // do childern stuff
-            if (i == 0)
-            { // WRITER
+            if (i == 0){ 
+                // WRITER
                 // writerPid = getpid();
                 // printf("I am WRITER of %d\n", myID);
                 if(nameExists(SendData) != FILE_){
                     // printf("%s desn't exist so create \n", SendData);
                     mkfifo(SendData, 0666);
                 }
-                findFiles(inputDir, 0, SendData, b, inputDir, logfile);
+                // find the email "alias for public key"
+                findEmail(commonDir, newID, recepientEmail);
+                findFiles(inputDir, 0, SendData, b, inputDir, logfile, recepientEmail);
                 // all files are done so write the final 00 bytes, to let reader
                 fd = open(SendData, O_WRONLY);
                 writeFinal(fd);
@@ -87,15 +90,15 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
                 unlink(SendData);
                 exit(YES);
             }
-            else if (i == 1)
-            { // READER
+            else if (i == 1){ 
+                // READER
                 // readerPid = getpid();
                 // printf("I am READER of %d\n", myID);
                 if(nameExists(ReceiveData) != FILE_){
                     // printf("%s desn't exist so create \n", ReceiveData);
                     mkfifo(ReceiveData, 0666);
-                }                
-                flag = readPipe(myID, newID, ReceiveData, mirrorDir, logfile, b);
+                }             
+                flag = readPipe(myID, newID, ReceiveData, mirrorDir, logfile, b, passPhrase);
 
                 unlink(ReceiveData);
                 if(flag == YES){
@@ -134,7 +137,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
             mkdir(mirrorDir, 0700);
         }
         // retry syncronizing again
-        syncr(myID, commonDir, b, inputDir, mirrorDir, logfile);
+        syncr(myID, commonDir, b, inputDir, mirrorDir, logfile, passPhrase);
         return SUCCESS;
     }
     else if (doAgain == ERROR){
@@ -147,7 +150,7 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
     return SUCCESS;
 }
 
-int newID(char* commonDir , char* inputDir, int myID, int newID, int b, char* mirrorDir, char* logfile){
+int newID(char* commonDir , char* inputDir, int myID, int newID, int b, char* mirrorDir, char* logfile, char* passPhrase){
     int retv;
     struct stat st = {0};
     char newFold[MAX_PATH_LEN];
@@ -156,7 +159,7 @@ int newID(char* commonDir , char* inputDir, int myID, int newID, int b, char* mi
     if (stat(newFold, &st) == -1) {
         mkdir(newFold, 0700);
     }
-    retv = spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile);
+    retv = spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile, passPhrase);
     if(retv == ERROR){
         return ERROR;
     }
@@ -176,13 +179,13 @@ int removeID(char* inputDir, int deletedID, char* mirrorDir){
 }
 
 // call function newID for each id1.id file in common Dir except the id1 == myID
-void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile){
+void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile, char* passPhrase){
     DIR *d;
     /* Open the directory specified by "commonDir". */
     d = opendir(commonDir);
     /* Check it was opened. */
     if (!d) {
-        printf("Cannot open directory commonDir in findFiles\n");
+        printf("Cannot open directory commonDir in syncr\n");
         return;
     }
     printf("I am in syncronizing mode \n");
@@ -213,7 +216,7 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
             pid_t pid;
             pid = fork();
             if (pid == 0) {
-                newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile);
+                newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile, passPhrase);
                 exit(YES);
             }
         }

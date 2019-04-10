@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <signal.h>
@@ -86,7 +87,23 @@ int nameExists(char* filename){
     return FILE_;
 }
 
-int writeIDfile(char* path, int id){
+void randomStringGenerator(size_t length, char *randomString) { // const size_t length, supra
+    srand(time(NULL));
+    static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    int n, l, key;
+    if(length){
+        if(randomString){
+            l = (int) (sizeof(charset) -1);
+            for (n = 0; n < length; n++) {
+                key = rand() % l;          // per-iteration instantiation
+                randomString[n] = charset[key];
+            }
+            randomString[length] = '\0';
+        }
+    }
+}
+
+int writeIDfile(char* path){
     char buf[MAX_PATH_LEN];
     char toMake[MAX_PATH_LEN];
     FILE* fp;
@@ -100,7 +117,9 @@ int writeIDfile(char* path, int id){
     // continue if it doesn't
     fp = fopen(toMake, "w");
     int pid = getpid();
-    fprintf(fp, "%d", pid);
+    fprintf(fp, "%d client%d@syspro.gr\n", pid, id);
+    // this is the alias other people will need in order to encrypt messages
+    // that only this user can decrypt
     fclose(fp);
     return SUCCESS;
 }
@@ -108,15 +127,14 @@ int writeIDfile(char* path, int id){
 int InputReader(int argc, char* argv[]){
     int n = argc;
     char* idchar;
-    // int id;
     FILE* logfp;
     char* inputDir;
-    // char* mirrorDir;
     char* b;
     int bSize;
-    // char* logfile;
+    char* passPhrase;
     struct stat st = {0};
     // init all the variables to be read as cmd line arguments
+    passPhrase = (char*) malloc(11);
     idchar = (char*) malloc(10);
     commonDir = (char*) malloc(MAX_PATH_LEN);
     inputDir = (char*) malloc(MAX_PATH_LEN);
@@ -130,6 +148,7 @@ int InputReader(int argc, char* argv[]){
     strcpy(mirrorDir, "");
     strcpy(b, "");
     strcpy(logfile, "");
+    strcpy(passPhrase, "");
 
     // read all cmd arguments
     paramChecker(n, argv, "-n", &idchar);
@@ -163,23 +182,31 @@ int InputReader(int argc, char* argv[]){
     }
 
     if (stat(commonDir, &st) == -1) {
-        // mkdir(commonDir, 0700);
         makeFolder(commonDir);
     }
+
     if (stat(mirrorDir, &st) == -1) {
-        // mkdir(mirrorDir, 0700);
         makeFolder(mirrorDir);
     }
+
+    // // encrypted files Folder
+    // sprintf(encryptedFolder, "%s/encryptedFiles", mirrorDir);
+    // if (stat(mirrorDir, &st) == -1) {
+    //     makeFolder(encryptedFolder);
+    // }
     // before writing his id in common dir
     // set up handlers for sigint and sigquit
     signal(SIGINT, terminating);
     signal(SIGQUIT, terminating);
 
-    if(writeIDfile(commonDir, id) == ERROR){
+    // make my encryption keys
+    randomStringGenerator(10, passPhrase);
+    printf("I am client %d and have pass: %s\n", id, passPhrase);
+    generateKeys(id, passPhrase);
+    // write id and alias(public key) in commonDir file
+    if(writeIDfile(commonDir) == ERROR){
         return ERROR;
     }
-    // make my encryption keys
-    generateKeys(id);
     // write in log file that i am here
     logfp = fopen(logfile, "a");
     // write data in log
@@ -189,9 +216,9 @@ int InputReader(int argc, char* argv[]){
     fflush(logfp);
     fclose(logfp);
     // first sync with all other processes
-    syncr(id, commonDir, bSize, inputDir, mirrorDir, logfile);
+    syncr(id, commonDir, bSize, inputDir, mirrorDir, logfile, passPhrase);
     // begin monitoring commonDir
-    inotifyCode(id, commonDir, bSize, inputDir, mirrorDir, logfile);
+    inotifyCode(id, commonDir, bSize, inputDir, mirrorDir, logfile, passPhrase);
 
     return SUCCESS;
 }

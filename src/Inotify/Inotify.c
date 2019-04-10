@@ -15,7 +15,7 @@
           argv is the list of watched directories.
           Entry 0 of wd and argv is unused. */
 
-static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile)
+static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile, char* passPhrase)
 {
     /* Some systems cannot read integer variables if they are not
               properly aligned. On other systems, incorrect alignment may
@@ -82,7 +82,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
                         pid_t pid;
                         pid = fork();
                         if (pid == 0) {
-                            if(newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile) == ERROR){
+                            if(newID(commonDir, inputDir, myID, thisID, b, mirrorDir, logfile, passPhrase) == ERROR){
                                 printf("NewID function returned an error \n");
                                 exit(EXIT_FAILURE);
                             }
@@ -105,7 +105,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
     }
 }
 
-int inotifyCode(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile)
+int inotifyCode(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, char* logfile, char* passPhrase)
 {
     int fd;
     int wd;
@@ -128,7 +128,7 @@ int inotifyCode(int myID, char *commonDir, int b, char* inputDir, char* mirrorDi
 
     printf("Listening for events.\n");
     while(1){
-        handle_events(myID, fd, wd, commonDir, b, inputDir, mirrorDir, logfile);
+        handle_events(myID, fd, wd, commonDir, b, inputDir, mirrorDir, logfile, passPhrase);
     }
     
     printf("Listening for events stopped.\n");

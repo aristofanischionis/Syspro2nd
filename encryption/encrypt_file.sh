@@ -10,4 +10,4 @@ email=$1
 target_file=$2 
 # file to be encrypted
 
-gpg --armor --trust-model always --yes --recipient ${email} --encrypt ${target_file}
+gpg --armor --trust-model always --yes --no-verbose --recipient ${email} --encrypt ${target_file}

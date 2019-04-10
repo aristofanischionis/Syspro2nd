@@ -10,4 +10,5 @@ fi
 pass=$1
 encrypted=$2
 output=$3
-gpg --yes --batch --passphrase=[${pass}] --decrypt --output ${output} ${encrypted}
+
+gpg --pinentry-mode loopback --yes --no-verbose --passphrase=${pass} --decrypt --output ${output} ${encrypted}

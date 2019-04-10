@@ -11,6 +11,7 @@
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/FileOperations.h"
+#include "../../HeaderFiles/Encryption.h"
 
 pid_t parentPid;
 
@@ -262,7 +263,7 @@ void writePipe(char* SendData, int b, char* actualPath, char* inputDir, char* lo
     close(fd);
 }
 
-int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logfile, int b){
+int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logfile, int b, char* passPhrase){
     // Install alarm handler
     signal(SIGALRM, handle_alarm);
     parentPid = getppid();
@@ -372,6 +373,11 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         fflush(logfp);
         fclose(logfp);
         metaRead = 0;
+
+        // call the decrypt function
+        decryptFile(passPhrase, newFile);
+        // delete newfile
+        unlink(newFile); 
     }
     return NO;
 }

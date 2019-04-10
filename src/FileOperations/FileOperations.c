@@ -11,6 +11,7 @@
 #include "../../HeaderFiles/Input.h"
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/FileOperations.h"
+#include "../../HeaderFiles/Encryption.h"
 #include <signal.h>
 pid_t parentPid;
 
@@ -38,7 +39,7 @@ char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
     return backupPath;
 }
 
-void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, char* logfile){
+void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, char* logfile, char* recepientEmail){
     parentPid = getppid();
     DIR *dir;
     struct dirent *entry;
@@ -57,10 +58,21 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, 
                 }
                 else if (S_ISDIR(info.st_mode)){
                     writePipe(SendData, b, path, inputDir, logfile);
-                    findFiles(path, indent+1, SendData, b, inputDir, logfile);
+                    findFiles(path, indent+1, SendData, b, inputDir, logfile, recepientEmail);
                 }
                 else {
-                    writePipe(SendData, b, path, inputDir, logfile);
+                    // it is a file
+                    // so encrypt it
+                    encryptFile(path, recepientEmail);
+                    // make the path.asc file in char* to pass to writePipe
+                    char* encr;
+                    encr = malloc(MAX_PATH_LEN);
+                    strcpy(encr, "");
+                    sprintf(encr, "%s.asc", path);
+                    // write it to pipe
+                    writePipe(SendData, b, encr, inputDir, logfile);
+                    // delete the encrypted copy in input_dir
+                    unlink(encr);
                 }
             }
         }
@@ -95,7 +107,8 @@ void makeFolder(char* foldername){
     pid = fork();
     if (pid == 0) {
         execl("/bin/mkdir", "mkdir", "-p", foldername, NULL);
-    } else if (pid < 0) {
+    } 
+    else if(pid < 0) {
         perror("pid<0 in mkdir\n");
         kill(parentPid,SIGUSR2);
         exit(NO);
