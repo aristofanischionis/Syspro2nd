@@ -39,7 +39,7 @@ char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
     return backupPath;
 }
 
-void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, char* logfile, char* recepientEmail){
+void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* logfile, char* recepientEmail){
     parentPid = getppid();
     DIR *dir;
     struct dirent *entry;
@@ -57,8 +57,8 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, 
                     fprintf(stderr, "stat() error on %s: %s\n", path, strerror(errno));
                 }
                 else if (S_ISDIR(info.st_mode)){
-                    writePipe(SendData, b, path, inputDir, logfile);
-                    findFiles(path, indent+1, SendData, b, inputDir, logfile, recepientEmail);
+                    writePipe(fd, b, path, inputDir, logfile);
+                    findFiles(path, indent+1, fd, b, inputDir, logfile, recepientEmail);
                 }
                 else {
                     // it is a file
@@ -70,7 +70,7 @@ void findFiles(char *source, int indent, char* SendData, int b, char* inputDir, 
                     strcpy(encr, "");
                     sprintf(encr, "%s.asc", path);
                     // write it to pipe
-                    writePipe(SendData, b, encr, inputDir, logfile);
+                    writePipe(fd, b, encr, inputDir, logfile);
                     // delete the encrypted copy in input_dir
                     unlink(encr);
                 }

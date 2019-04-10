@@ -24,3 +24,6 @@ diff -r -q path1/ path2/
 
 to kill bg processes:
 kill $(ps -A -ostat,ppid | awk '/[zZ]/ && !a[$2]++ {print $2}')
+
+delete any remaining .asc files in input:
+find  hello* | grep .asc | xargs rm -f

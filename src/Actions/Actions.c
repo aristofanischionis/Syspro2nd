@@ -81,9 +81,14 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
                 }
                 // find the email "alias for public key"
                 findEmail(commonDir, newID, recepientEmail);
-                findFiles(inputDir, 0, SendData, b, inputDir, logfile, recepientEmail);
-                // all files are done so write the final 00 bytes, to let reader
                 fd = open(SendData, O_WRONLY);
+                if(fd < 0){
+                    perror(" error in WritePipe: ");
+                    exit(NO);
+                }
+                findFiles(inputDir, 0, fd, b, inputDir, logfile, recepientEmail);
+                // all files are done so write the final 00 bytes, to let reader
+                // fd = open(SendData, O_WRONLY);
                 writeFinal(fd);
                 close(fd);
                 // delete the fifo file from system
