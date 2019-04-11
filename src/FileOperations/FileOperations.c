@@ -66,9 +66,11 @@ void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* lo
                     encryptFile(path, recepientEmail);
                     // make the path.asc file in char* to pass to writePipe
                     char* encr;
-                    encr = malloc(MAX_PATH_LEN);
+                    encr = malloc(strlen(path)+5);
                     strcpy(encr, "");
+
                     sprintf(encr, "%s.asc", path);
+                    printf("Encrypted Name %s \n", encr);
                     // write it to pipe
                     writePipe(fd, b, encr, inputDir, logfile);
                     // delete the encrypted copy in input_dir

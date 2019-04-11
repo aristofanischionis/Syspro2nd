@@ -86,7 +86,7 @@ int decryptFile(char* passPhrase, char* encryptedFile){
     char *dotPos;
     dotPos = strrchr(decryptedOutput, '.');
     strcpy(dotPos, "");
-    
+    // printf("=---------------------=decrypted filename: %s \n", decryptedOutput);
     int status = 0;
     pid = fork(); 
     if(pid == -1){ 
