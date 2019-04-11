@@ -16,31 +16,45 @@
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 
-pid_t parentPid;
+pid_t parentPid, writerPid, readerPid;
 volatile sig_atomic_t signalsReceived = 0;
-volatile sig_atomic_t doAgain = NO;
-volatile sig_atomic_t alarmSIG = 0;
+volatile sig_atomic_t STOP = NO;
+volatile sig_atomic_t alarmSIG = OFF;
+volatile sig_atomic_t WRITER = ALIVE;
+volatile sig_atomic_t READER = ALIVE;
 
 void handler2(){
+    // WRITER is dead
     signal(SIGUSR2, handler2);
     signalsReceived++;
-    printf("PARENT: %d I have received a SIGUSR2 for the %d time\n", (int)parentPid, signalsReceived);
+    WRITER = DEAD;
+    printf("PARENT: %d I have received a SIGUSR2\n", (int)parentPid);
     if(signalsReceived == 3){
         //maximum number achieved
         signalsReceived = 0;
-        // do what i m  supposed
-        doAgain = ERROR;
-    }
-    else {
-        // call spawn kids
-        doAgain = YES;
+        
+        STOP = YES;
     }
 }
 
 void handler1(){
+    // READER is dead
     signal(SIGUSR1, handler1);
+    signalsReceived++;
+    READER = DEAD;
     printf("PARENT: %d I have received a SIGUSR1\n", (int)parentPid);
-    alarmSIG = 1;
+    if(signalsReceived == 3){
+        //maximum number achieved
+        signalsReceived = 0;
+        STOP = YES;
+    }
+}
+
+void handle_alarm(){
+    signal(SIGALRM, handle_alarm);
+    signalsReceived++;
+    printf("PARENT: %d I have received a SIGALARM\n", (int)parentPid);
+    alarmSIG = ON;
 }
 
 int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char* mirrorDir, char* logfile, char* passPhrase){
@@ -57,7 +71,8 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
     // setting the signal receivers
     signal(SIGUSR2, handler2);
     signal(SIGUSR1, handler1);
-    
+    // Install alarm handler
+    signal(SIGALRM, handle_alarm);
     // giving name to each fifo
     sprintf(SendData, "%s/%d_to_%d.fifo", commonDir, myID, newID);
     sprintf(ReceiveData, "%s/%d_to_%d.fifo", commonDir, newID, myID);
@@ -73,14 +88,90 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
             // do childern stuff
             if (i == 0){ 
                 // WRITER
-                // writerPid = getpid();
+                signal(SIGPIPE, handle_SIGPIPE);
+                writerPid = getpid();
                 // printf("I am WRITER of %d\n", myID);
                 if(nameExists(SendData) != FILE_){
                     // printf("%s desn't exist so create \n", SendData);
                     mkfifo(SendData, 0666);
                 }
                 // find the email "alias for public key"
-                findEmail(commonDir, newID, recepientEmail);
+                if(findEmail(commonDir, newID, recepientEmail) == ERROR){
+                    fprintf(stderr, "Couldn't find Email of id: %d \n", newID);
+                    kill(parentPid, SIGUSR2);
+                    exit(NO);
+                }
+                fd = open(SendData, O_WRONLY);
+                if(fd < 0){
+                    perror(" error in WritePipe: ");
+                    exit(NO);
+                }
+                findFiles(inputDir, 0, fd, b, inputDir, logfile, recepientEmail);
+                // all files are done so write the final 00 bytes, to let reader
+                writeFinal(fd);
+                close(fd);
+                // delete the fifo file from system
+                unlink(SendData);
+                exit(YES);
+            }
+            else if (i == 1){ 
+                // READER
+                readerPid = getpid();
+                // printf("I am READER of %d\n", myID);
+                if(nameExists(ReceiveData) != FILE_){
+                    // printf("%s desn't exist so create \n", ReceiveData);
+                    mkfifo(ReceiveData, 0666);
+                }             
+                flag = readPipe(myID, newID, ReceiveData, mirrorDir, logfile, b, passPhrase);
+
+                unlink(ReceiveData);
+                if(flag == YES){
+                    exit(YES);
+                }
+                kill(parentPid, SIGUSR1);
+                exit(NO);
+            }
+        }
+    }
+    // parent
+    int exit_status;
+    int status = 0;
+    while ((wpid = wait(&status)) > 0){
+        if(WIFEXITED(status)){
+            exit_status = WEXITSTATUS(status);      
+            printf("Exit status of %d was (%s)\n", (int)wpid,
+                (exit_status == YES) ? "successful" : "not successful"); 
+        }
+    }
+    if(exit_status == YES){
+        return SUCCESS;
+    }
+    if((alarmSIG == ON) && (STOP == NO)){
+        alarmSIG = OFF;
+        // alarm from kid received so terminate both kids and send a sigusr2 sig
+        // the other kid will terminate after some time waiting in fifo
+
+    }
+    if(STOP == NO){
+        if(WRITER == DEAD){
+            WRITER = ALIVE;
+            sleep(5);
+            pid = fork();
+            if (pid == 0){
+                // WRITER
+                signal(SIGPIPE, handle_SIGPIPE);
+                writerPid = getpid();
+                // printf("I am WRITER of %d\n", myID);
+                if(nameExists(SendData) != FILE_){
+                    // printf("%s desn't exist so create \n", SendData);
+                    mkfifo(SendData, 0666);
+                }
+                // find the email "alias for public key"
+                if(findEmail(commonDir, newID, recepientEmail) == ERROR){
+                    fprintf(stderr, "Couldn't find Email of id: %d \n", newID);
+                    kill(parentPid, SIGUSR2);
+                    exit(NO);
+                }
                 fd = open(SendData, O_WRONLY);
                 if(fd < 0){
                     perror(" error in WritePipe: ");
@@ -95,9 +186,14 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
                 unlink(SendData);
                 exit(YES);
             }
-            else if (i == 1){ 
+        }
+        if(READER == DEAD){
+            READER = ALIVE;
+            sleep(5);
+            pid = fork();
+            if (pid == 0){
                 // READER
-                // readerPid = getpid();
+                readerPid = getpid();
                 // printf("I am READER of %d\n", myID);
                 if(nameExists(ReceiveData) != FILE_){
                     // printf("%s desn't exist so create \n", ReceiveData);
@@ -109,47 +205,32 @@ int spawnKids(char* commonDir, int myID, int newID, char* inputDir, int b, char*
                 if(flag == YES){
                     exit(YES);
                 }
-                kill(parentPid,SIGUSR2);
+                kill(parentPid, SIGUSR1);
                 exit(NO);
             }
         }
-    }
-    // parent
-    int status = 0;
-    while ((wpid = wait(&status)) > 0){
-        if(WIFEXITED(status)){
-            int exit_status = WEXITSTATUS(status);      
-            printf("Exit status of %d was (%s)\n", (int)wpid,
-                (exit_status == YES) ? "successful" : "not successful"); 
-        }
-    }
-    if(alarmSIG == 1){
-        alarmSIG = 0;
-        // alarm from kid received so terminate both kids and send a sigusr2 sig
-        // the other kid will terminate after some time waiting in fifo
-        kill(parentPid, SIGUSR2);
-    }
-    if(doAgain == YES){
-        // kill the other
         
-        // delete mirror
-        if(deleteFolder(mirrorDir) == ERROR){
-            perror("Folder cannot be deleted : \n");
-            return ERROR;
-        }
-        struct stat st = {0};
-        if (stat(mirrorDir, &st) == -1) {
-            mkdir(mirrorDir, 0700);
-        }
-        // retry syncronizing again
-        syncr(myID, commonDir, b, inputDir, mirrorDir, logfile, passPhrase);
-        return SUCCESS;
+        // // delete mirror
+        // if(deleteFolder(mirrorDir) == ERROR){
+        //     perror("Folder cannot be deleted : \n");
+        //     return ERROR;
+        // }
+        // struct stat st = {0};
+        // if (stat(mirrorDir, &st) == -1) {
+        //     mkdir(mirrorDir, 0700);
+        // }
+        // // retry syncronizing again
+        // syncr(myID, commonDir, b, inputDir, mirrorDir, logfile, passPhrase);
+        // return SUCCESS;
     }
-    else if (doAgain == ERROR){
+    else if (STOP == YES){
         // reached 3 times
-        // delete the remaining fifos
-        unlink(SendData);
-        unlink(ReceiveData);
+        if(WRITER == DEAD){
+            unlink(SendData);
+        }
+        if(READER == DEAD){
+            unlink(ReceiveData);
+        }
         return ERROR;
     }
     return SUCCESS;
@@ -229,7 +310,6 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
     /* After going through all the entries, close the directory. */
     if (closedir(d)) {
         fprintf(stderr, "Could not close '%s': %s\n", commonDir, strerror(errno));
-        kill(parentPid,SIGUSR2);
         exit(NO);
     }
 }

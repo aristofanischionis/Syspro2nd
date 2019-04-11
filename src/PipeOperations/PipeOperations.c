@@ -13,12 +13,10 @@
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 
-pid_t parentPid;
-
-void handle_alarm(){
-    signal(SIGALRM, handle_alarm);
-    printf("A read/write operation in fifo took longer than expected\n");
-    kill(parentPid, SIGUSR2);
+void handle_SIGPIPE(){
+    signal(SIGPIPE, handle_SIGPIPE);
+    printf("WRITER got a SIGPIPE error, sending signal to father\n");
+    kill(getppid(), SIGUSR2);
     exit(NO);
 }
 
@@ -43,7 +41,7 @@ int writeFile(char* filename, int parentfd, int size, int b){
         if(size < b){
             if((r = read(fd, file, size)) < 0){
                 perror("read from file failed: ");
-                kill(parentPid,SIGUSR2);
+                kill(getppid(), SIGUSR2);
                 exit(NO);
             }
             file[r] = '\0';
@@ -57,7 +55,7 @@ int writeFile(char* filename, int parentfd, int size, int b){
         // else if we need more than one loops to read and write files
         if((r = read(fd, file, b)) < 0){
             perror("read from file failed: ");
-            kill(parentPid,SIGUSR2);
+            kill(getppid(), SIGUSR2);
             exit(NO);
         }
         file[r] = '\0';
@@ -80,7 +78,7 @@ int readFile(int parentfd, int size, char* newFile, int b){
 
     if (newFD == NULL ) {
         perror("Failed to open file:(readFile) ");
-        kill(parentPid,SIGUSR2);
+        kill(getppid(), SIGUSR1);
         exit(NO);
     }
 
@@ -94,9 +92,9 @@ int readFile(int parentfd, int size, char* newFile, int b){
             //
             bytes += r;
             
-            if(fprintf(newFD, "%s", file) < 0){
+            if(fprintf(newFD, "%s", file) < 1){
                 perror("write to newfile failed: ");
-                kill(parentPid,SIGUSR2);
+                kill(getppid(), SIGUSR1);
                 exit(NO);
             }
             fflush(newFD);
@@ -105,9 +103,9 @@ int readFile(int parentfd, int size, char* newFile, int b){
         }
         r = myRead(parentfd, file, b);
         file[r] = '\0';
-        if(fprintf(newFD, "%s", file) < 0){
+        if(fprintf(newFD, "%s", file) < 1){
             perror("write to newfile failed: ");
-            kill(parentPid,SIGUSR2);
+            kill(getppid(), SIGUSR1);
             exit(NO);
         }
         //
@@ -123,10 +121,10 @@ int myRead(int fd, void* result, int bytes){
     int charsRead = 0;
     
     alarm(30);
-    if((charsRead = read(fd, result, bytes)) < 0){
-        printf("I read %d chars\n", charsRead);
+    if((charsRead = read(fd, result, bytes)) < 1){
+        // printf("I read %d chars\n", charsRead);
         perror(" Error in reading pipe: ");
-        kill(parentPid,SIGUSR2);
+        kill(getppid(), SIGUSR1);
         exit(NO);
     }
     alarm(0);
@@ -140,7 +138,7 @@ int myWrite(int fd, void* toWrite, int bytes){
     if ((charsWrite = write(fd, toWrite, bytes)) < 0){
         printf("I wrote %d chars\n", charsWrite);
         perror(" Error in Writing in pipe: ");
-        kill(parentPid,SIGUSR2);
+        kill(getppid(), SIGUSR2);
         exit(NO);
     }
     alarm(0);
@@ -149,10 +147,7 @@ int myWrite(int fd, void* toWrite, int bytes){
 
 
 void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
-    // Install alarm handler
-    signal(SIGALRM, handle_alarm);
-    parentPid = getppid();
-    // printf("I am writePipe and my dad %d and i setted up the alarm handler\n", parentPid);
+    // printf("I am writePipe and my dad %d and i setted up the alarm handler\n", getppid());
     int isDir = NO;
     char* buffer;
     FILE* logfp;
@@ -224,10 +219,7 @@ void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
 }
 
 int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logfile, int b, char* passPhrase){
-    // Install alarm handler
-    signal(SIGALRM, handle_alarm);
-    parentPid = getppid();
-    // printf("I am readPipe and my dad %d and i setted up the alarm handler\n", parentPid);
+    // printf("I am readPipe and my dad %d and i setted up the alarm handler\n", getppid());
     int fd;
     FILE* logfp;
     int nread = 0;
@@ -243,6 +235,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     fd = open(ReceiveData, O_RDONLY);
     if(fd < 0){
         perror(" error in WritePipe: ");
+        kill(getppid(), SIGUSR1);
         exit(NO);
     }
     // printf("After %s read end opens \n", ReceiveData);

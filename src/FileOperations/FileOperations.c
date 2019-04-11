@@ -87,7 +87,6 @@ long int calculateFileSize(char* filename){
     fp = fopen(filename, "r");
     if(fp == NULL){
         perror("Unable to open file: ");
-        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     fseek(fp, 0L, SEEK_END);
@@ -112,7 +111,6 @@ void makeFolder(char* foldername){
     } 
     else if(pid < 0) {
         perror("pid<0 in mkdir\n");
-        kill(parentPid,SIGUSR2);
         exit(NO);
     }
 
@@ -161,7 +159,6 @@ int makeFile(char* filename){
         execl("/bin/touch", "touch", filename, NULL);
     } else if (pid < 0) {
         perror("pid<0 in touch\n");
-        kill(parentPid,SIGUSR2);
         exit(NO);
     }
     while ((wpid = wait(&status)) > 0);

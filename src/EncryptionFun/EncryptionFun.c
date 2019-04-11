@@ -106,7 +106,7 @@ int decryptFile(char* passPhrase, char* encryptedFile){
     return SUCCESS;
 }
 
-void findEmail(char* commonDir, int recepientID, char* recepientEmail){
+int findEmail(char* commonDir, int recepientID, char* recepientEmail){
     DIR *dir;
     pid_t pid;
     char result[40];
@@ -135,14 +135,18 @@ void findEmail(char* commonDir, int recepientID, char* recepientEmail){
                         fscanf(fp, "%d %s", &pid, result);
                         fclose(fp);
                         strcpy(recepientEmail, result);
+                        if(!strcmp(recepientEmail, "")){
+                            return ERROR;
+                        }
                         printf("I found the email: %s\n", recepientEmail);
                         closedir(dir);
-                        return;
+                        return SUCCESS;
                     }
                 }        
             }
         }
     }
+    return ERROR;
 }
 
 

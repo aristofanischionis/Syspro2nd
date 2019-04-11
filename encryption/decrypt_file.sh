@@ -11,4 +11,4 @@ pass=$1
 encrypted=$2
 output=$3
 
-gpg --pinentry-mode loopback --yes --no-verbose --passphrase=${pass} --decrypt --output ${output} ${encrypted}
+gpg --pinentry-mode loopback --yes -q --no-verbose --passphrase=${pass} --decrypt --output ${output} ${encrypted}
