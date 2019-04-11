@@ -193,7 +193,7 @@ void syncr(int myID, char *commonDir, int b, char* inputDir, char* mirrorDir, ch
         printf("Cannot open directory commonDir in syncr\n");
         return;
     }
-    printf("I am in syncronizing mode \n");
+    // printf("I am in syncronizing mode \n");
     while (1) {
         struct dirent *entry;
         char *d_name;

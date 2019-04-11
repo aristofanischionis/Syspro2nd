@@ -70,7 +70,7 @@ void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* lo
                     strcpy(encr, "");
 
                     sprintf(encr, "%s.asc", path);
-                    printf("Encrypted Name %s \n", encr);
+                    // printf("Encrypted Name %s \n", encr);
                     // write it to pipe
                     writePipe(fd, b, encr, inputDir, logfile);
                     // delete the encrypted copy in input_dir

@@ -33,11 +33,12 @@ int writeFile(char* filename, int parentfd, int size, int b){
     int bytes = 0;
     int r = 0;
     file = malloc(b+1);
-    // strcpy(file, "");
-    
+    strcpy(file, "");	
     fd = open(filename, O_RDONLY);
     
     while(size > 0){
+        free(file);		
+	    file = malloc(size+1);		
         strcpy(file, "");
         if(size < b){
             if((r = read(fd, file, size)) < 0){
@@ -45,7 +46,7 @@ int writeFile(char* filename, int parentfd, int size, int b){
                 kill(parentPid,SIGUSR2);
                 exit(NO);
             }
-            file[size] = '\0';
+            file[r] = '\0';
             
             r = myWrite(parentfd, file, size);
             //
@@ -65,23 +66,19 @@ int writeFile(char* filename, int parentfd, int size, int b){
         bytes += r;
         size -= b;
     }
-    // free(file);      
+    free(file);      
     close(fd);
     return bytes;
 }
 
 int readFile(int parentfd, int size, char* newFile, int b){
-    int newFD = open(newFile, O_WRONLY);
-    char* fullBuffer;
+    FILE* newFD = fopen(newFile, "w");
     char* file;
     int bytes = 0;
     int r = 0;
-    int StartingSize = size;
-    fullBuffer = malloc(size + 1);
     file = malloc(b+1);
-    strcpy(fullBuffer, "");
 
-    if (newFD < 0 ) {
+    if (newFD == NULL ) {
         perror("Failed to open file:(readFile) ");
         kill(parentPid,SIGUSR2);
         exit(NO);
@@ -89,31 +86,36 @@ int readFile(int parentfd, int size, char* newFile, int b){
 
     while(size > 0){
         if(size < b){
+            free(file);
+            file = malloc(size + 1);
             strcpy(file, "");
             r = myRead(parentfd, file, size);
-            strcat(fullBuffer, file);
+            file[r] = '\0';
             //
             bytes += r;
-            fullBuffer[StartingSize] = '\0';
-            // printf("full buffer is : \n %s", fullBuffer);
-            // fflush(stdout);
-            if(write(newFD, fullBuffer, StartingSize) < 0){
+            
+            if(fprintf(newFD, "%s", file) < 0){
                 perror("write to newfile failed: ");
                 kill(parentPid,SIGUSR2);
                 exit(NO);
             }
+            fflush(newFD);
             size = 0;
             break;
         }
         r = myRead(parentfd, file, b);
-        strcat(fullBuffer, file);
+        file[r] = '\0';
+        if(fprintf(newFD, "%s", file) < 0){
+            perror("write to newfile failed: ");
+            kill(parentPid,SIGUSR2);
+            exit(NO);
+        }
         //
         bytes += r;
-        size = size - b;
+        size -= b;
     }
-    // free(fullBuffer);
-    // free(file);
-    close(newFD);
+    free(file);
+    fclose(newFD);
     return bytes;
 }
 
@@ -142,7 +144,6 @@ int myWrite(int fd, void* toWrite, int bytes){
         exit(NO);
     }
     alarm(0);
-    // printf("W buffer is %s and bytes: %d, charsWrite %d \n ", buffer, bytes, charsWrite);
     return charsWrite;
 }
 
@@ -182,41 +183,28 @@ void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
     if(isDir == YES){
         //send an identifier l == -1
         short int flag = -1;
-        // strcpy(buffer, "");
-        // sprintf(buffer, "%hi", flag);
         
         myWrite(fd, &flag, sizeof(short int));
         // write the name len
-        // strcpy(buffer, "");
-        // sprintf(buffer, "%hi", len);
 
         myWrite(fd, &len, sizeof(short int));
         // write name of folder
-        // strcpy(buffer, "");
-        // strcpy(buffer, pathToBackup);
         
-        myWrite(fd, pathToBackup, len);
-        // free(pathToBackup);
+        myWrite(fd, pathToBackup, len+1);
+        free(pathToBackup);
         return;
     }
 
     // if it is a file
-    // strcpy(buffer, "");
-    // sprintf(buffer, "%hi", len);
     
     nwrite = myWrite(fd, &len, sizeof(short int));
     metaWritten += (int)nwrite;
-    // strcpy(buffer, "");
-    // strcpy(buffer, pathToBackup);
-    printf("\nWRITER------> %s \n", pathToBackup);
-    nwrite = myWrite(fd, pathToBackup, len);
+ 
+    // printf("\nWRITER------> %s \n", pathToBackup);
+    nwrite = myWrite(fd, pathToBackup, len +1);
     metaWritten += (int)nwrite;
     // len of file
     size = (unsigned int) calculateFileSize(actualPath);
-    // sprintf(s, "%d", size);
-    // printf("---------> size %s \n", s);
-    // strcpy(buffer, "");
-    // sprintf(buffer, "%u", size);
     
     nwrite = myWrite(fd, &size, sizeof(unsigned int));
     metaWritten += (int)nwrite;
@@ -231,7 +219,7 @@ void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
     fprintf(logfp, "%s\n", logdata);
     fflush(logfp);
     fclose(logfp);
-    // free(pathToBackup);
+    free(pathToBackup);
     return;
 }
 
@@ -240,7 +228,6 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     signal(SIGALRM, handle_alarm);
     parentPid = getppid();
     // printf("I am readPipe and my dad %d and i setted up the alarm handler\n", parentPid);
-    char* buffer;
     int fd;
     FILE* logfp;
     int nread = 0;
@@ -248,10 +235,9 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     short int len = 0;
     int bytesRead = 0;
     int metaRead = 0;
-    char* filename = NULL;
+    char* filename;
     char* newFile;
-    buffer = malloc(MAX_PATH_LEN);
-    // filename = malloc(MAX_PATH_LEN);
+    filename = malloc(MAX_PATH_LEN);
     newFile = malloc(MAX_PATH_LEN);
     // printf("Before %s read end opens \n", ReceiveData);
     fd = open(ReceiveData, O_RDONLY);
@@ -263,20 +249,18 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     // first read the first two digits, if they are 00, then exit successfully,
     // if they are not continue it is the len of next file
     while(1){
-        // strcpy(filename, "");
-        if(filename != NULL){
-            free(filename);
-        }
+        strcpy(filename, "");
+        // if(filename != NULL){
+        //     free(filename);
+        // }
         strcpy(newFile, "");
-        strcpy(buffer, "");
         
         nread = myRead(fd, &len, sizeof(short int));
-        // len = (short int) atoi(buffer);
         if(len == 0){
             printf("I read the 00 bytes from pipe so I m done\n");
             // successful
-            // free(filename);
-            // free(newFile);
+            free(filename);
+            free(newFile);
             close(fd);
             return YES;
         }
@@ -285,16 +269,15 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             char* folderName;
             char* newFolder;
             short int folderNameLen = 0;
-            
-            myRead(fd, &folderNameLen, sizeof(short int));
-            folderName = malloc(folderNameLen+1);
-            newFolder = malloc(folderNameLen+strlen(mirrorDir)+15);
+            folderName = malloc(MAX_PATH_LEN);
+            newFolder = malloc(MAX_PATH_LEN);
             strcpy(newFolder, "");
-            // folderNameLen = (short int) atoi(buffer);
+            strcpy(folderName, "");
+            myRead(fd, &folderNameLen, sizeof(short int));
             // read folder path
 
-            myRead(fd, folderName, folderNameLen);
-            // strcpy(folderName, buffer);
+            int read = myRead(fd, folderName, folderNameLen + 1);
+            folderName[read] = '\0';
             // make the path to backup
             sprintf(newFolder, "%s/%d/%s", mirrorDir, newID, folderName);
             makeFolder(newFolder);
@@ -304,25 +287,24 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
 
         metaRead += nread;
 
-        filename = malloc(len + 1);
-        strcpy(filename, "");
+        // filename = malloc(len + 1);
+        // strcpy(filename, "");
 
-        nread = myRead(fd, filename, len);
+        nread = myRead(fd, filename, len+1);
         metaRead += nread;
-
-        // strcpy(filename, buffer);
-
+        filename[nread] = '\0';
         nread = myRead(fd, &size, sizeof(unsigned int));
         metaRead += nread;
 
-        // size = (unsigned int) atoi(buffer);
         // make new file in folder
         // in filename i have the actual path
-        
+        if(!strcmp(filename, "")){
+            continue;
+        }
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
         // printf("file to be made is %s \n", newFile);
         makeFile(newFile);
-        printf("\nREADER->name is %s and size %d \n", newFile, size);
+        // printf("\nREADER->name is %s and size %d \n", newFile, size);
 
         bytesRead = readFile(fd, size, newFile, b);
         logfp = fopen(logfile, "a");

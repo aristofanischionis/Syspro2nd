@@ -189,11 +189,6 @@ int InputReader(int argc, char* argv[]){
         makeFolder(mirrorDir);
     }
 
-    // // encrypted files Folder
-    // sprintf(encryptedFolder, "%s/encryptedFiles", mirrorDir);
-    // if (stat(mirrorDir, &st) == -1) {
-    //     makeFolder(encryptedFolder);
-    // }
     // before writing his id in common dir
     // set up handlers for sigint and sigquit
     signal(SIGINT, terminating);
@@ -216,7 +211,9 @@ int InputReader(int argc, char* argv[]){
     fflush(logfp);
     fclose(logfp);
     // first sync with all other processes
+    printf("Initial Syncronization Started! \n");
     syncr(id, commonDir, bSize, inputDir, mirrorDir, logfile, passPhrase);
+    printf("Initial Syncronization finished!\n");
     // begin monitoring commonDir
     inotifyCode(id, commonDir, bSize, inputDir, mirrorDir, logfile, passPhrase);
 
