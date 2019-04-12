@@ -16,7 +16,7 @@
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 
-pid_t parentPid, writerPid, readerPid;
+pid_t parentPid;
 volatile sig_atomic_t signalsReceived = 0;
 volatile sig_atomic_t STOP = NO;
 volatile sig_atomic_t alarmSIG = OFF;
@@ -62,7 +62,7 @@ void handle_alarm()
     alarmSIG = ON;
 }
 
-void WRITER_process(char *SendData, int newID, char *commonDir, char *inputDir, int b, char *logfile)
+void WRITER_process(char *SendData, int newID, char *commonDir, char *inputDir, int b, char *logfile, char* passPhrase)
 {
     int fd;
     char *recepientEmail;
@@ -70,19 +70,22 @@ void WRITER_process(char *SendData, int newID, char *commonDir, char *inputDir, 
     strcpy(recepientEmail, "");
     // WRITER
     signal(SIGPIPE, handle_SIGPIPE);
-    writerPid = getpid();
-    // printf("I am WRITER of %d\n", myID);
+    // writerPid = getpid();
+    // printf("I am WRITER with pid %d\n", writerPid);
     if (nameExists(SendData) != FILE_)
     {
         // printf("%s desn't exist so create \n", SendData);
         mkfifo(SendData, 0666);
     }
-    // find the email "alias for public key"
-    if (findEmail(commonDir, newID, recepientEmail) == ERROR)
-    {
-        fprintf(stderr, "Couldn't find Email of id: %d \n", newID);
-        kill(parentPid, SIGUSR2);
-        exit(NO);
+    if(strcmp(passPhrase, "")){
+        // ENCRYPTION_MODE is ON
+        // find the email "alias for public key"
+        if (findEmail(commonDir, newID, recepientEmail) == ERROR)
+        {
+            fprintf(stderr, "Couldn't find Email of id: %d \n", newID);
+            kill(parentPid, SIGUSR2);
+            exit(NO);
+        }
     }
     fd = open(SendData, O_WRONLY);
     if (fd < 0)
@@ -102,8 +105,8 @@ void WRITER_process(char *SendData, int newID, char *commonDir, char *inputDir, 
 void READER_process(char* ReceiveData, int myID, int newID, char* mirrorDir, char* logfile, int b, char* passPhrase){
     int flag;
     // READER
-    readerPid = getpid();
-    // printf("I am READER of %d\n", myID);
+    // readerPid = getpid();
+    // printf("I am READER with pid %d\n", readerPid);
     if (nameExists(ReceiveData) != FILE_){
         // printf("%s desn't exist so create \n", ReceiveData);
         mkfifo(ReceiveData, 0666);
@@ -132,16 +135,17 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
     signal(SIGALRM, handle_alarm);
     parentPid = getpid();
     // forking the kids
-    pid_t pid, wpid;
+    // pid_t pid, wpid;
+    pid_t pid[2];
     for (int i = 0; i < 2; i++)
     {
-        pid = fork();
-        if (pid == 0)
+        // pid = fork();
+        if ((pid[i] = fork()) == 0)
         {
             // do childern stuff
             if ((i == 0) && (w == YES))
             {
-                WRITER_process(SendData, newID, commonDir, inputDir, b, logfile);
+                WRITER_process(SendData, newID, commonDir, inputDir, b, logfile, passPhrase);
             }
             else if ((i == 1) && (r == YES))
             {
@@ -151,16 +155,18 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
     }
     // parent
     int exit_status;
-    int status = 0;
-    while ((wpid = wait(&status)) > 0)
-    {
-        if (WIFEXITED(status))
-        {
-            exit_status = WEXITSTATUS(status);
-            printf("Exit status of %d was (%s)\n", (int)wpid,
-                   (exit_status == YES) ? "successful" : "not successful");
+    int stat;
+    for (int i=0; i<2; i++) 
+    { 
+        pid_t cpid = waitpid(pid[i], &stat, 0); 
+        if (WIFEXITED(stat)){
+            exit_status = WEXITSTATUS(stat);
+            printf("Exit status of client's %d %s was (%s)\n",
+                myID,
+                (cpid == pid[0]) ? "WRITER" : "READER",
+                (exit_status == YES) ? "successful" : "not successful");
         }
-    }
+    } 
     if (exit_status == YES){
         return SUCCESS;
     }
@@ -173,13 +179,13 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
         if (WRITER == DEAD)
         {
             WRITER = ALIVE;
-            sleep(5);
+            sleep(2);
             spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile, passPhrase, NO, YES);
         }
         if (READER == DEAD)
         {
             READER = ALIVE;
-            sleep(5);
+            sleep(2);
             spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile, passPhrase, YES, NO);
         }
     }

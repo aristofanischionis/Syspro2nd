@@ -16,8 +16,7 @@
 
 int generateKeys(int myID, char* passPhrase){
     char gentxtName[50];
-    pid_t pid, wpid;
-    int status = 0;
+    pid_t pid;
     FILE* fp;
     strcpy(gentxtName, "");
     sprintf(gentxtName, "encryptionScripts/gen_key_script%d", myID);
@@ -50,14 +49,13 @@ int generateKeys(int myID, char* passPhrase){
         exit(NO); 
     }
     
-    while ((wpid = wait(&status)) > 0);
+    wait(NULL);
 
     return SUCCESS;
 }   
 
 int encryptFile(char* file, char* recepientEmail){
-    pid_t pid, wpid;
-    int status = 0;
+    pid_t pid;
     pid = fork(); 
     if(pid == -1){ 
         perror("fork in encryptFile: "); 
@@ -69,7 +67,7 @@ int encryptFile(char* file, char* recepientEmail){
         exit(NO); 
     }
     
-    while ((wpid = wait(&status)) > 0);
+    wait(NULL);
     printf("File: %s encrypted Successfully!\n", file);
     fflush(stdout);
     return SUCCESS;
@@ -79,7 +77,7 @@ int decryptFile(char* passPhrase, char* encryptedFile){
     // make the name decryptedOutput alone
     // the same but with not .asc
     // delete encrypted file from disc
-    pid_t pid, wpid;
+    pid_t pid;
     char* decryptedOutput;
     decryptedOutput = malloc(strlen(encryptedFile) + 1);
     strcpy(decryptedOutput, encryptedFile);
@@ -87,7 +85,6 @@ int decryptFile(char* passPhrase, char* encryptedFile){
     dotPos = strrchr(decryptedOutput, '.');
     strcpy(dotPos, "");
     // printf("=---------------------=decrypted filename: %s \n", decryptedOutput);
-    int status = 0;
     pid = fork(); 
     if(pid == -1){ 
         perror("fork in decryptFile: "); 
@@ -99,7 +96,7 @@ int decryptFile(char* passPhrase, char* encryptedFile){
         exit(NO); 
     }
     
-    while ((wpid = wait(&status)) > 0);
+    wait(NULL);
     printf("File: %s decrypted Successfully!\n", decryptedOutput);
     fflush(stdout);
     unlink(encryptedFile);

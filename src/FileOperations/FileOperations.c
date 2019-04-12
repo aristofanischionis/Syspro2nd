@@ -62,19 +62,26 @@ void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* lo
                 }
                 else {
                     // it is a file
-                    // so encrypt it
-                    encryptFile(path, recepientEmail);
-                    // make the path.asc file in char* to pass to writePipe
-                    char* encr;
-                    encr = malloc(strlen(path)+5);
-                    strcpy(encr, "");
+                    if(strcmp(recepientEmail, "")){
+                        //ENCRYPTION_MODE ON
+                        // so encrypt it
+                        encryptFile(path, recepientEmail);
+                        // make the path.asc file in char* to pass to writePipe
+                        char* encr;
+                        encr = malloc(strlen(path)+5);
+                        strcpy(encr, "");
 
-                    sprintf(encr, "%s.asc", path);
-                    // printf("Encrypted Name %s \n", encr);
-                    // write it to pipe
-                    writePipe(fd, b, encr, inputDir, logfile);
-                    // delete the encrypted copy in input_dir
-                    unlink(encr);
+                        sprintf(encr, "%s.asc", path);
+                        // printf("Encrypted Name %s \n", encr);
+                        // write it to pipe
+                        writePipe(fd, b, encr, inputDir, logfile);
+                        // delete the encrypted copy in input_dir
+                        unlink(encr);
+                        free(encr);
+                    }
+                    else{
+                        writePipe(fd, b, path, inputDir, logfile);
+                    }
                 }
             }
         }
@@ -103,8 +110,7 @@ void makeFolder(char* foldername){
     }
     // printf("Folder to be made %s\n", foldername);
     // make any subdirectories first using mkdir -p
-    pid_t pid, wpid;
-    int status = 0;
+    pid_t pid;
     pid = fork();
     if (pid == 0) {
         execl("/bin/mkdir", "mkdir", "-p", foldername, NULL);
@@ -114,7 +120,7 @@ void makeFolder(char* foldername){
         exit(NO);
     }
 
-    while ((wpid = wait(&status)) > 0); 
+    wait(NULL);
 }
 
 int makeFile(char* filename){
@@ -147,28 +153,24 @@ int makeFile(char* filename){
     // printf("My path is %s \n", path);
     // printf("My file is %s \n", file);
     // make any subdirectories first using mkdir -p
-    pid_t pid, wpid;
-    int status = 0;
-    
+    pid_t pid;    
     makeFolder(path); 
     
     // then use touch
     pid = fork();
-    status = 0;
     if (pid == 0) {
         execl("/bin/touch", "touch", filename, NULL);
     } else if (pid < 0) {
         perror("pid<0 in touch\n");
         exit(NO);
     }
-    while ((wpid = wait(&status)) > 0);
+    wait(NULL);
     
     return YES;
 }
 
 int deleteFolder(char* folder){
-    pid_t pid, wpid;
-    int status = 0;
+    pid_t pid;
     if(folder && !folder[0]){
         printf("folder is empty in deleteFolder \n");
         return ERROR;
@@ -180,6 +182,6 @@ int deleteFolder(char* folder){
         perror("pid<0 in rm -rf\n");
         return ERROR;
     }
-    while ((wpid = wait(&status)) > 0); 
+    wait(NULL);
     return SUCCESS;
 }

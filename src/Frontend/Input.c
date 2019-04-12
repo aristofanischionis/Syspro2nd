@@ -17,6 +17,7 @@ char* commonDir;
 char* mirrorDir;
 char* logfile;
 int id;
+int ENCRYPTION_MODE = OFF;
 
 void terminating(){
     char file[100];
@@ -117,9 +118,14 @@ int writeIDfile(char* path){
     // continue if it doesn't
     fp = fopen(toMake, "w");
     int pid = getpid();
-    fprintf(fp, "%d client%d@syspro.gr\n", pid, id);
-    // this is the alias other people will need in order to encrypt messages
-    // that only this user can decrypt
+    if(ENCRYPTION_MODE == ON){
+        fprintf(fp, "%d client%d@syspro.gr\n", pid, id);
+        // this is the alias other people will need in order to encrypt messages
+        // that only this user can decrypt
+    }
+    else{
+        fprintf(fp, "%d\n", pid);
+    }
     fclose(fp);
     return SUCCESS;
 }
@@ -194,10 +200,16 @@ int InputReader(int argc, char* argv[]){
     signal(SIGINT, terminating);
     signal(SIGQUIT, terminating);
 
-    // make my encryption keys
-    randomStringGenerator(10, passPhrase);
-    printf("I am client %d and have pass: %s\n", id, passPhrase);
-    generateKeys(id, passPhrase);
+    if(ENCRYPTION_MODE == ON){
+        // make my encryption keys
+        randomStringGenerator(10, passPhrase);
+        printf("I am client %d and have pass: %s\n", id, passPhrase);
+        generateKeys(id, passPhrase);
+    }
+    else{
+        printf("I am client %d, with ENCRYPTION_MODE : OFF\n", id);
+    }
+    
     // write id and alias(public key) in commonDir file
     if(writeIDfile(commonDir) == ERROR){
         return ERROR;

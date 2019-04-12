@@ -243,9 +243,6 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     // if they are not continue it is the len of next file
     while(1){
         strcpy(filename, "");
-        // if(filename != NULL){
-        //     free(filename);
-        // }
         strcpy(newFile, "");
         
         nread = myRead(fd, &len, sizeof(short int));
@@ -308,10 +305,13 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
         fflush(logfp);
         fclose(logfp);
         metaRead = 0;
-        // call the decrypt function
-        decryptFile(passPhrase, newFile);
+        if(strcmp(passPhrase, "")){
+            // encryption_mode is on!
+            // call the decrypt function
+            decryptFile(passPhrase, newFile);
+        }
         // delete newfile
-        unlink(newFile);
+        // unlink(newFile);
     }
     return NO;
 }
