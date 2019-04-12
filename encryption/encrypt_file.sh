@@ -1,5 +1,7 @@
 #!/bin/bash
-# checks arguments
+# encrypting files using the recipients public key alias, the email
+# --armor let me encrypt as ascii file not as binary which is the default
+# so I don't have to do major changes in my program when using encryption
 # correct usage: ./encrypt_file.sh email target_file
 if [[ $# -ne 2 ]] ; then
     echo 'the number of args provided is' $#

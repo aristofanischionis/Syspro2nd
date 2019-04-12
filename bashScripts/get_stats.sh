@@ -18,7 +18,6 @@ while read -a sentence; do
 
     if [[ ${sentence[0]} == "id:" ]]; then
         id=${sentence[1]}
-        # echo 'I read id is '${sentence[1]}
         clientArray[$clientsArrived]=${id}
         clientsArrived=$((clientsArrived + 1))
     fi
@@ -37,7 +36,6 @@ while read -a sentence; do
 
     if [[ ${sentence[0]} == "Leaving" ]]; then
         clientsLeft=$((clientsLeft + 1))
-        # echo 'Client left the system '${sentence[3]}
     fi
 
 done
@@ -46,13 +44,13 @@ maxID=${clientArray[0]}
 for n in "${clientArray[@]}" ; do
     ((n > maxID)) && maxID=$n
 done
-# echo 'max id is: '$maxID
+# 
 # 
 minID=${clientArray[0]}
 for n in "${clientArray[@]}" ; do
     ((n < minID)) && minID=$n
 done
-# echo 'min id is: '$minID
+# 
 
 echo '=============RESULTS============='
 # printing the results

@@ -34,7 +34,6 @@ void handler2()
     {
         //maximum number achieved
         signalsReceived = 0;
-
         STOP = YES;
     }
 }
@@ -62,19 +61,18 @@ void handle_alarm()
     alarmSIG = ON;
 }
 
+// the Writer of a client
 void WRITER_process(char *SendData, int newID, char *commonDir, char *inputDir, int b, char *logfile, char* passPhrase)
 {
+    // WRITER
     int fd;
+    // this is the public key alias for the receiver of the file
     char *recepientEmail;
     recepientEmail = malloc(30);
     strcpy(recepientEmail, "");
-    // WRITER
     signal(SIGPIPE, handle_SIGPIPE);
-    // writerPid = getpid();
-    // printf("I am WRITER with pid %d\n", writerPid);
     if (nameExists(SendData) != FILE_)
     {
-        // printf("%s desn't exist so create \n", SendData);
         mkfifo(SendData, 0666);
     }
     if(strcmp(passPhrase, "")){
@@ -87,32 +85,34 @@ void WRITER_process(char *SendData, int newID, char *commonDir, char *inputDir, 
             exit(NO);
         }
     }
+    // open the pipe from the writer end
     fd = open(SendData, O_WRONLY);
     if (fd < 0)
     {
-        perror(" error in WritePipe: ");
+        perror(" error in WRITER Opening Pipe: ");
         exit(NO);
     }
+    // go through all files and folders and then call the writePipe function to write the pipe
     findFiles(inputDir, 0, fd, b, inputDir, logfile, recepientEmail);
-    // all files are done so write the final 00 bytes, to let reader
+    // all files are done so write the final 00 bytes, to let reader know we re done
     writeFinal(fd);
     close(fd);
     // delete the fifo file from system
     unlink(SendData);
+    // exit successfully
     exit(YES);
 }
 
 void READER_process(char* ReceiveData, int myID, int newID, char* mirrorDir, char* logfile, int b, char* passPhrase){
-    int flag;
     // READER
-    // readerPid = getpid();
-    // printf("I am READER with pid %d\n", readerPid);
+    int flag;
     if (nameExists(ReceiveData) != FILE_){
-        // printf("%s desn't exist so create \n", ReceiveData);
         mkfifo(ReceiveData, 0666);
     }
+    // calling the basic function that handles all the pipe operations from the read end
     flag = readPipe(myID, newID, ReceiveData, mirrorDir, logfile, b, passPhrase);
 
+    // delete fifo
     unlink(ReceiveData);
     if (flag == YES)
     {
@@ -122,10 +122,12 @@ void READER_process(char* ReceiveData, int myID, int newID, char* mirrorDir, cha
     exit(NO);
 }
 
+// making the kids READER WRITER and handling their exit status
 int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char *mirrorDir, char *logfile, char *passPhrase, int r, int w)
 {
     char SendData[FIFO_LEN];
     char ReceiveData[FIFO_LEN];
+    // making the fifos
     sprintf(SendData, "%s/%d_to_%d.fifo", commonDir, myID, newID);
     sprintf(ReceiveData, "%s/%d_to_%d.fifo", commonDir, newID, myID);
     // setting the signal receivers
@@ -135,14 +137,13 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
     signal(SIGALRM, handle_alarm);
     parentPid = getpid();
     // forking the kids
-    // pid_t pid, wpid;
     pid_t pid[2];
     for (int i = 0; i < 2; i++)
     {
-        // pid = fork();
         if ((pid[i] = fork()) == 0)
         {
-            // do childern stuff
+            // w means if i want a writer process to be born
+            // r stands for reader
             if ((i == 0) && (w == YES))
             {
                 WRITER_process(SendData, newID, commonDir, inputDir, b, logfile, passPhrase);
@@ -153,7 +154,8 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
             }
         }
     }
-    // parent
+    // parent waits for kids to finish and examine their exit status
+    // do appropriate actions and print the messages
     int exit_status;
     int stat;
     for (int i=0; i<2; i++) 
@@ -178,12 +180,14 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
     {
         if (WRITER == DEAD)
         {
+            // a writer process is reborn, because the previous one died
             WRITER = ALIVE;
             sleep(2);
             spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile, passPhrase, NO, YES);
         }
         if (READER == DEAD)
         {
+            // reader process reborn
             READER = ALIVE;
             sleep(2);
             spawnKids(commonDir, myID, newID, inputDir, b, mirrorDir, logfile, passPhrase, YES, NO);
@@ -205,6 +209,7 @@ int spawnKids(char *commonDir, int myID, int newID, char *inputDir, int b, char 
     return SUCCESS;
 }
 
+// i found a newID in the common directory so let's syncronize with it
 int newID(char *commonDir, char *inputDir, int myID, int newID, int b, char *mirrorDir, char *logfile, char *passPhrase)
 {
     int retv;
@@ -223,14 +228,13 @@ int newID(char *commonDir, char *inputDir, int myID, int newID, int b, char *mir
     }
     return SUCCESS;
 }
-
+// an ID has been deleted from common directory
 int removeID(char *inputDir, int deletedID, char *mirrorDir)
 {
-
     char tobeDEL[MAX_PATH_LEN];
     sprintf(tobeDEL, "%s/%d", mirrorDir, deletedID);
     printf("Now removing %s \n", tobeDEL);
-    // forks a kid and execs rm -rf of the given folder
+    // forks a kid and execs rm -rf for the given folder
     if (deleteFolder(tobeDEL) == ERROR)
     {
         return ERROR;
@@ -242,44 +246,41 @@ int removeID(char *inputDir, int deletedID, char *mirrorDir)
 void syncr(int myID, char *commonDir, int b, char *inputDir, char *mirrorDir, char *logfile, char *passPhrase)
 {
     DIR *d;
-    /* Open the directory specified by "commonDir". */
+    // Open the directory specified by "commonDir".
     d = opendir(commonDir);
-    /* Check it was opened. */
+    // Check it was opened.
     if (!d)
     {
         printf("Cannot open directory commonDir in syncr\n");
         return;
     }
-    // printf("I am in syncronizing mode \n");
-    while (1)
+
+    while(1)
     {
         struct dirent *entry;
         char *d_name;
 
-        /* "Readdir" gets subsequent entries from "d". */
+        // "Readdir" gets subsequent entries from "d".
         entry = readdir(d);
         if (!entry)
         {
-            /* There are no more entries in this directory, so break
-            out of the while loop. */
+            // There are no more entries in this directory, so break out of the while loop.
             break;
         }
         d_name = entry->d_name;
 
-        // if it is the cur folder or the parent
-        if (d_name[0] == '.')
-            continue;
+        // if it is the current or parent folder
+        if (d_name[0] == '.') continue;
         char *dot = strrchr(d_name, '.');
         if (dot && !strcmp(dot, ".id"))
         {
             // I found a filename that ends with .id
             int thisID = 0;
             sscanf(d_name, "%d.id", &thisID);
-            if (thisID == myID)
-                continue;
-            // if it is a file do stuff
+            if (thisID == myID) continue;
+            // if it is a another id do stuff
             printf("client with id %d found!\n", thisID);
-            // call newID
+            // call newID and fork a kid without waiting it, in order to move faster
             pid_t pid;
             pid = fork();
             if (pid == 0)
@@ -289,7 +290,7 @@ void syncr(int myID, char *commonDir, int b, char *inputDir, char *mirrorDir, ch
             }
         }
     }
-    /* After going through all the entries, close the directory. */
+    // After going through all the entries, close the directory.
     if (closedir(d))
     {
         fprintf(stderr, "Could not close '%s': %s\n", commonDir, strerror(errno));

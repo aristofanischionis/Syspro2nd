@@ -13,7 +13,8 @@
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 #include <signal.h>
-pid_t parentPid;
+
+// whatever has to do with file and folder manipulation is here
 
 // Make an identical path to sourcePath, but with backupBase as the root
 char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
@@ -39,8 +40,9 @@ char* formatBackupPath(char* sourceBase, char* backupBase, char* sourcePath) {
     return backupPath;
 }
 
+// one of the most important functions
+// going through source dir and gives folders and files into writepipe to write them in pipe
 void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* logfile, char* recepientEmail){
-    parentPid = getppid();
     DIR *dir;
     struct dirent *entry;
     char path[MAX_PATH_LEN];
@@ -57,11 +59,13 @@ void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* lo
                     fprintf(stderr, "stat() error on %s: %s\n", path, strerror(errno));
                 }
                 else if (S_ISDIR(info.st_mode)){
+                    // it is a directory, pass it to the pipe and then continue with the next folder depth recursively
                     writePipe(fd, b, path, inputDir, logfile);
                     findFiles(path, indent+1, fd, b, inputDir, logfile, recepientEmail);
                 }
                 else {
                     // it is a file
+                    // email is not empty
                     if(strcmp(recepientEmail, "")){
                         //ENCRYPTION_MODE ON
                         // so encrypt it
@@ -70,9 +74,7 @@ void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* lo
                         char* encr;
                         encr = malloc(strlen(path)+5);
                         strcpy(encr, "");
-
                         sprintf(encr, "%s.asc", path);
-                        // printf("Encrypted Name %s \n", encr);
                         // write it to pipe
                         writePipe(fd, b, encr, inputDir, logfile);
                         // delete the encrypted copy in input_dir
@@ -80,6 +82,7 @@ void findFiles(char *source, int indent, int fd, int b, char* inputDir, char* lo
                         free(encr);
                     }
                     else{
+                        // encryption is off
                         writePipe(fd, b, path, inputDir, logfile);
                     }
                 }
@@ -149,9 +152,7 @@ int makeFile(char* filename){
     if (path[0] == '/'){
         memmove(path, path+1, strlen(path));
     }
-    // printf("filename is %s \n", filename);
-    // printf("My path is %s \n", path);
-    // printf("My file is %s \n", file);
+    
     // make any subdirectories first using mkdir -p
     pid_t pid;    
     makeFolder(path); 

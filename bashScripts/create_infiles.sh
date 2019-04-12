@@ -6,7 +6,7 @@ function random_string()
     cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-$((1 + RANDOM % 8))} | head -n 1
 }
 
-# generates a random string of random len 1-8
+# generates a random string of random len 1K-128K to provide input to files
 function random_data()
 {
     VAR=$(shuf -i 1000-128000 -n 1)
@@ -59,9 +59,8 @@ function main () {
     # get their random names
     for ((i = 0 ; i < num_of_dirs ; i++)); do
         dir_array[$i]=$(random_string)
-        # echo ${dir_array[$i]}
     done
-    # create them in lvls
+    # create them in lvls in RR order
     declare -a rr_dir_arr
     rr_dir_arr[0]=$dir_name
     let dir_counter=1
@@ -84,17 +83,13 @@ function main () {
             dir_counter=$((dir_counter + 1))
             counter=$((counter + 1))
         done
-        # echo ${tmp_dir}
         mkdir -p $tmp_dir
     done
     # declare a filename array
     declare -a fil_array
     # create random file names
-    # echo 'lets make our nice files'
     for ((i = 0 ; i < num_of_files ; i++)); do
         fil_array[$i]=$(random_string)
-        # fil_array[$i]='f'${i}
-        # echo ${fil_array[$i]}
     done
     # create them in RR order and place them in folders
     # i have already my array of dirs in rr order so just go through the array and add files

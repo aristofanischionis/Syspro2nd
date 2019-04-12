@@ -13,6 +13,8 @@
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 
+// this is the default signal when the reader quits and writer stays in the pipe 
+// if this happens the writer should stop and send signal to parent
 void handle_SIGPIPE(){
     signal(SIGPIPE, handle_SIGPIPE);
     printf("WRITER got a SIGPIPE error, sending signal to father\n");
@@ -20,11 +22,14 @@ void handle_SIGPIPE(){
     exit(NO);
 }
 
+// final "00" bytes written in pipe
 void writeFinal(int fd){
     short int final = 0;
     myWrite(fd, &final, sizeof(short int));
 }
 
+// write context of file in pipe
+// parentfd is the fd of the pipe where i write data
 int writeFile(char* filename, int parentfd, int size, int b){
     int fd;
     char *file;
@@ -39,17 +44,20 @@ int writeFile(char* filename, int parentfd, int size, int b){
 	    file = malloc(size+1);		
         strcpy(file, "");
         if(size < b){
+            // reading size bytes from file
             if((r = read(fd, file, size)) < 0){
                 perror("read from file failed: ");
                 kill(getppid(), SIGUSR2);
                 exit(NO);
             }
+            // finalize string
             file[r] = '\0';
-            
+            // write size bytes to pipe
             r = myWrite(parentfd, file, size);
             //
             bytes += r;
             size = 0;
+            // finished
             break;
         }
         // else if we need more than one loops to read and write files
@@ -69,6 +77,8 @@ int writeFile(char* filename, int parentfd, int size, int b){
     return bytes;
 }
 
+// reading size bytes from parentfd(pipe) in chunks of b bytes
+// and writing them to newFile
 int readFile(int parentfd, int size, char* newFile, int b){
     FILE* newFD = fopen(newFile, "w");
     char* file;
@@ -87,11 +97,13 @@ int readFile(int parentfd, int size, char* newFile, int b){
             free(file);
             file = malloc(size + 1);
             strcpy(file, "");
+            // reading from pipe size bytes
             r = myRead(parentfd, file, size);
+            // finalizing string
             file[r] = '\0';
             //
             bytes += r;
-            
+            // writing to newFile
             if(fprintf(newFD, "%s", file) < 1){
                 perror("write to newfile failed: ");
                 kill(getppid(), SIGUSR1);
@@ -99,6 +111,7 @@ int readFile(int parentfd, int size, char* newFile, int b){
             }
             fflush(newFD);
             size = 0;
+            // finished
             break;
         }
         r = myRead(parentfd, file, b);
@@ -116,7 +129,9 @@ int readFile(int parentfd, int size, char* newFile, int b){
     fclose(newFD);
     return bytes;
 }
-
+// my function for reading from pipe
+// reads bytes from fd and put them in result
+// doing error handling and signaling in case of an error
 int myRead(int fd, void* result, int bytes){
     int charsRead = 0;
     
@@ -131,6 +146,9 @@ int myRead(int fd, void* result, int bytes){
     return charsRead;
 }
 
+// my function for writing to pipe
+// writing toWrite which is bytes
+// doing error handling and  everything
 int myWrite(int fd, void* toWrite, int bytes){
     int charsWrite = 0;
 
@@ -145,9 +163,8 @@ int myWrite(int fd, void* toWrite, int bytes){
     return charsWrite;
 }
 
-
+// has to write a file into the pipe
 void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
-    // printf("I am writePipe and my dad %d and i setted up the alarm handler\n", getppid());
     int isDir = NO;
     char* buffer;
     FILE* logfp;
@@ -168,7 +185,6 @@ void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
         isDir = YES;
         closedir(dir);
     }
-    
     // write len of file name
     // cut the first part of actual path that is not necessary in backup
     // name of interest to concat for the other process
@@ -178,31 +194,26 @@ void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
     if(isDir == YES){
         //send an identifier l == -1
         short int flag = -1;
-        
+        // write the flag
         myWrite(fd, &flag, sizeof(short int));
         // write the name len
-
         myWrite(fd, &len, sizeof(short int));
         // write name of folder
-        
         myWrite(fd, pathToBackup, len+1);
         free(pathToBackup);
         return;
     }
-
     // if it is a file
-    
     nwrite = myWrite(fd, &len, sizeof(short int));
-    metaWritten += (int)nwrite;
+    metaWritten += nwrite;
  
-    // printf("\nWRITER------> %s \n", pathToBackup);
     nwrite = myWrite(fd, pathToBackup, len +1);
-    metaWritten += (int)nwrite;
+    metaWritten += nwrite;
     // len of file
     size = (unsigned int) calculateFileSize(actualPath);
     
     nwrite = myWrite(fd, &size, sizeof(unsigned int));
-    metaWritten += (int)nwrite;
+    metaWritten += nwrite;
     //
     bytesWritten = writeFile(actualPath, fd, size, b);
     // wrote all of the file in fd
@@ -218,8 +229,8 @@ void writePipe(int fd, int b, char* actualPath, char* inputDir, char* logfile){
     return;
 }
 
+// this function has to read from pipe all the files for this client
 int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logfile, int b, char* passPhrase){
-    // printf("I am readPipe and my dad %d and i setted up the alarm handler\n", getppid());
     int fd;
     FILE* logfp;
     int nread = 0;
@@ -231,16 +242,14 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
     char* newFile;
     filename = malloc(MAX_PATH_LEN);
     newFile = malloc(MAX_PATH_LEN);
-    // printf("Before %s read end opens \n", ReceiveData);
     fd = open(ReceiveData, O_RDONLY);
     if(fd < 0){
         perror(" error in WritePipe: ");
         kill(getppid(), SIGUSR1);
         exit(NO);
     }
-    // printf("After %s read end opens \n", ReceiveData);
     // first read the first two digits, if they are 00, then exit successfully,
-    // if they are not continue it is the len of next file
+    // if they are not continue it is the len of next file or if -1 it is a folder
     while(1){
         strcpy(filename, "");
         strcpy(newFile, "");
@@ -277,9 +286,6 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
 
         metaRead += nread;
 
-        // filename = malloc(len + 1);
-        // strcpy(filename, "");
-
         nread = myRead(fd, filename, len+1);
         metaRead += nread;
         filename[nread] = '\0';
@@ -292,7 +298,7 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             continue;
         }
         sprintf(newFile, "%s/%d/%s", mirrorDir, newID, filename);
-        // printf("file to be made is %s \n", newFile);
+
         makeFile(newFile);
         // printf("\nREADER->name is %s and size %d \n", newFile, size);
 
@@ -310,8 +316,6 @@ int readPipe(int myID, int newID, char* ReceiveData, char* mirrorDir, char* logf
             // call the decrypt function
             decryptFile(passPhrase, newFile);
         }
-        // delete newfile
-        // unlink(newFile);
     }
     return NO;
 }

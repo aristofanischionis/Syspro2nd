@@ -14,6 +14,13 @@
 #include "../../HeaderFiles/FileOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 
+// first makes a file under the folder encryptionScripts
+// this files specifies all the details for the keys to be generated for this client
+// I generate a random 10 char passPhrase for each client, this is not printed anywhere,
+// it is the password the client has to unlock his private key
+// I tried to make it simulate a real situation, where this passPhrase is only known to each client and 
+// it's difficult for another client to figure it out
+// the details for the keys like the DSA, ELG-E and 1024 bytes are chosen to be fast rather than secure
 int generateKeys(int myID, char* passPhrase){
     char gentxtName[50];
     pid_t pid;
@@ -50,10 +57,11 @@ int generateKeys(int myID, char* passPhrase){
     }
     
     wait(NULL);
-
     return SUCCESS;
 }   
 
+// encrypt a file using the recepient's public 'alias' key
+// the new file will be file.asc and will be deleted from the input dir, when the transfer is completed
 int encryptFile(char* file, char* recepientEmail){
     pid_t pid;
     pid = fork(); 
@@ -62,7 +70,7 @@ int encryptFile(char* file, char* recepientEmail){
         exit(NO); 
     } 
     else if (pid == 0){ 
-        char* argvList[] = {"./encryption/encrypt_file.sh", recepientEmail, file,NULL}; 
+        char* argvList[] = {"./encryption/encrypt_file.sh", recepientEmail, file, NULL}; 
         execv("./encryption/encrypt_file.sh", argvList); 
         exit(NO); 
     }
@@ -74,7 +82,7 @@ int encryptFile(char* file, char* recepientEmail){
 }
 
 int decryptFile(char* passPhrase, char* encryptedFile){
-    // make the name decryptedOutput alone
+    // make the name decryptedOutput here
     // the same but with not .asc
     // delete encrypted file from disc
     pid_t pid;
@@ -99,10 +107,13 @@ int decryptFile(char* passPhrase, char* encryptedFile){
     wait(NULL);
     printf("File: %s decrypted Successfully!\n", decryptedOutput);
     fflush(stdout);
+    // delete the transfered encrypted file
     unlink(encryptedFile);
     return SUCCESS;
 }
 
+// given the common directory searhes for the recepientID.id file, and extracts the email information
+// returning it through the recepientEmail parameter
 int findEmail(char* commonDir, int recepientID, char* recepientEmail){
     DIR *dir;
     pid_t pid;

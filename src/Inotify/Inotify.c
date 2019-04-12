@@ -9,6 +9,7 @@
 #include "../../HeaderFiles/Actions.h"
 #include "../../HeaderFiles/Input.h"
 
+// standard code got from the man page
 /* Read all available inotify events from the file descriptor 'fd'.
           wd is the table of watch descriptors for the directories in argv.
           argc is the length of wd and argv.
@@ -51,25 +52,6 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
              ptr += sizeof(struct inotify_event) + event->len)
         {
             event = (const struct inotify_event *)ptr;
-            // if (event->mask & IN_CREATE)
-            //     printf("IN_CREATE: ");
-            // if (event->mask & IN_DELETE)
-            //     printf("IN_DELETE: ");
-
-            /* Print the name of the watched directory */
-            // printf("%s/", commonDir);
-
-            /* Print the name of the file */
-
-            // if (event->len)
-            //     printf("%s", event->name);
-
-            /* Print type of filesystem object */
-
-            // if (event->mask & IN_ISDIR)
-            //     printf(" [directory]\n");
-            // else
-            //     printf(" [file]\n");
 
             if(event->len){
                 char *dot = strrchr(event->name, '.');
@@ -79,6 +61,7 @@ static void handle_events(int myID, int fd, int wd, char *commonDir, int b, char
                     sscanf(event->name, "%d.id", &thisID);
                     printf("I found an event for id = %d \n", thisID);
                     if (event->mask & IN_CREATE){
+                        // fork a kid so don't lose time on waiting here till it finishes
                         pid_t pid;
                         pid = fork();
                         if (pid == 0) {

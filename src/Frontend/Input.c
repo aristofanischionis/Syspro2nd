@@ -13,13 +13,18 @@
 #include "../../HeaderFiles/PipeOperations.h"
 #include "../../HeaderFiles/Encryption.h"
 
+// these are global so that the terminating function can use them
 char* commonDir;
 char* mirrorDir;
 char* logfile;
 int id;
-int ENCRYPTION_MODE = OFF;
+// this is the flag you need to change OFF and ON
+// if OFF -> program runs faster but more insecurely
+// if ON -> program runs slower but more securely
+int ENCRYPTION_MODE = ON;
 
 void terminating(){
+    // handler for SIGQUIT, SIGINIT
     char file[100];
     char* logdata;
     FILE* logfp;
@@ -61,7 +66,6 @@ void paramChecker(int n, char* argv[], char* toCheck, char** result){
                     printf("After %s flag a - was read\n", toCheck);
                     exit(1);
                 }
-                // printf("%s flag value is: %s\n", toCheck, argv[i+1]);
                 strcpy(*result, argv[i+1]);
                 return ;
             }
@@ -74,9 +78,8 @@ void paramChecker(int n, char* argv[], char* toCheck, char** result){
     }
 }
 
+// checks if this filename exists
 int nameExists(char* filename){
-    // struct stat buffer;   
-    // return (stat (filename, &buffer) == 0);
     struct stat info;
     if(lstat(filename,&info) != 0) {
         if(errno == ENOENT) {
@@ -88,6 +91,7 @@ int nameExists(char* filename){
     return FILE_;
 }
 
+// it is used to make a random passphrase for each client
 void randomStringGenerator(size_t length, char *randomString) { // const size_t length, supra
     srand(time(NULL));
     static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -104,12 +108,12 @@ void randomStringGenerator(size_t length, char *randomString) { // const size_t 
     }
 }
 
+// writes my pid in file and the public key alias if encryption is on
 int writeIDfile(char* path){
     char buf[MAX_PATH_LEN];
     char toMake[MAX_PATH_LEN];
     FILE* fp;
     sprintf(toMake, "%s/%d.id", realpath(path, buf), id);
-    // printf("I am going to make file : %s \n", toMake);
     // check if file already exists
     if(nameExists(toMake) == FILE_){
         printf("File with id %d already exists \n", id);
@@ -119,9 +123,9 @@ int writeIDfile(char* path){
     fp = fopen(toMake, "w");
     int pid = getpid();
     if(ENCRYPTION_MODE == ON){
-        fprintf(fp, "%d client%d@syspro.gr\n", pid, id);
         // this is the alias other people will need in order to encrypt messages
         // that only this user can decrypt
+        fprintf(fp, "%d client%d@syspro.gr\n", pid, id);
     }
     else{
         fprintf(fp, "%d\n", pid);

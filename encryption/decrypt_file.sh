@@ -1,6 +1,9 @@
 #!/bin/bash
-# checks arguments
-# correct usage: ./decrypt_file.sh pass encrypted_file output_file
+# decrypt using the password for the private key of the receiver
+# the pinentry option let me skip the prompt messages and just take te passPhrase 
+# from the next option passphrase
+# -q and no verbose are there to mute the gpg's messages as much as possible
+# correct usage: ./decrypt_file.sh passPhrase encrypted_file output_file
 
 if [[ $# -ne 3 ]] ; then
     echo 'the number of args provided is' $#
